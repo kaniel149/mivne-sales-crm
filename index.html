@@ -2,143 +2,516 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Solar OS Mivne — Sales CRM</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700;800;900&family=IBM+Plex+Sans+Hebrew:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { 'rubik': ['Rubik', 'sans-serif'], 'plex': ['IBM Plex Sans Hebrew', 'sans-serif'] },
+      colors: {
+        solar: { 50:'#fff9eb', 100:'#ffefc6', 200:'#ffdb82', 300:'#ffc53d', 400:'#ffb014', 500:'#f59300', 600:'#d97200', 700:'#b35000', 800:'#923e06', 900:'#78330a' },
+        volt: { 400:'#38bdf8', 500:'#0ea5e9', 600:'#0284c7' },
+        abyss: { 800:'#0c1222', 850:'#0a0f1c', 900:'#070b14', 950:'#040711' },
+      }
+    }
+  }
+}
+</script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap');
-* { font-family: 'Heebo', sans-serif; }
-body { background: #0f172a; color: #e2e8f0; }
-.kanban-col { min-height: 400px; }
-.lead-card { transition: all 0.2s; cursor: grab; }
-.lead-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
-.lead-card.dragging { opacity: 0.5; }
-.tier-1 { border-right: 3px solid #ef4444; }
-.tier-2 { border-right: 3px solid #f59e0b; }
-.tier-3 { border-right: 3px solid #3b82f6; }
-.hot { background: #dc26261a; }
-.warm { background: #f59e0b1a; }
-.cold { background: #3b82f61a; }
-.modal-bg { background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
-.tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; }
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #1e293b; }
-::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+* { font-family: 'IBM Plex Sans Hebrew', 'Rubik', sans-serif; box-sizing: border-box; margin: 0; padding: 0; }
+h1, h2, h3, .font-display { font-family: 'Rubik', sans-serif; }
+
+/* === BASE === */
+body {
+  background: #070b14;
+  color: #e2e8f0;
+  overflow-x: hidden;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* === NOISE TEXTURE OVERLAY === */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* === AMBIENT GLOW === */
+.ambient-glow {
+  position: fixed;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.07;
+  pointer-events: none;
+  z-index: 0;
+}
+.glow-solar { background: #f59300; top: -200px; right: -100px; }
+.glow-volt { background: #0ea5e9; bottom: -200px; left: -100px; }
+.glow-center { background: #ffc53d; top: 40%; left: 50%; transform: translate(-50%,-50%); width: 800px; height: 400px; opacity: 0.03; }
+
+/* === SCROLLBAR === */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+/* === GLASS CARD === */
+.glass {
+  background: linear-gradient(135deg, rgba(15,23,42,0.8), rgba(15,23,42,0.5));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(148,163,184,0.08);
+}
+.glass-strong {
+  background: linear-gradient(135deg, rgba(15,23,42,0.95), rgba(15,23,42,0.8));
+  backdrop-filter: blur(30px);
+  border: 1px solid rgba(148,163,184,0.1);
+}
+
+/* === LEAD CARD === */
+.lead-card {
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  cursor: grab;
+  position: relative;
+  overflow: hidden;
+}
+.lead-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 60%, rgba(245,147,0,0.03));
+  pointer-events: none;
+  transition: opacity 0.3s;
+  opacity: 0;
+}
+.lead-card:hover::before { opacity: 1; }
+.lead-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(245,147,0,0.1);
+}
+.lead-card.dragging { opacity: 0.4; transform: rotate(2deg) scale(0.95); }
+.lead-card .quick-actions {
+  opacity: 0;
+  transform: translateY(4px);
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lead-card:hover .quick-actions {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* TIER INDICATORS */
+.tier-bar { position: absolute; top: 0; right: 0; bottom: 0; width: 3px; border-radius: 0 4px 4px 0; }
+.tier-1 .tier-bar { background: linear-gradient(to bottom, #ef4444, #f97316); }
+.tier-2 .tier-bar { background: linear-gradient(to bottom, #f59e0b, #eab308); }
+.tier-3 .tier-bar { background: linear-gradient(to bottom, #3b82f6, #6366f1); }
+
+/* HEAT GLOW */
+.heat-hot { box-shadow: inset 0 0 30px rgba(239,68,68,0.06); }
+.heat-warm { box-shadow: inset 0 0 30px rgba(245,158,11,0.04); }
+.heat-cold { box-shadow: inset 0 0 30px rgba(59,130,246,0.04); }
+
+/* === TAB SYSTEM === */
+.tab-btn {
+  position: relative;
+  transition: all 0.3s;
+  color: #64748b;
+}
+.tab-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 50%; right: 50%;
+  height: 2px;
+  background: linear-gradient(90deg, #f59300, #ffc53d);
+  border-radius: 2px 2px 0 0;
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tab-btn.active { color: #ffc53d; }
+.tab-btn.active::after { left: 0; right: 0; }
+.tab-btn:hover { color: #94a3b8; }
+
+/* === VIEW TRANSITIONS === */
+.view-panel {
+  animation: viewFadeIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes viewFadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* === STAGGER ANIMATION === */
+.stagger-in { animation: staggerFade 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes staggerFade {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* === STAT CARD === */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+.stat-card::after {
+  content: '';
+  position: absolute;
+  top: -50%; right: -50%;
+  width: 100%; height: 100%;
+  background: radial-gradient(circle, rgba(245,147,0,0.06), transparent);
+  transition: opacity 0.3s;
+  opacity: 0;
+}
+.stat-card:hover::after { opacity: 1; }
+.stat-card:hover { border-color: rgba(245,147,0,0.2); }
+
+/* === MODAL === */
+.modal-overlay {
+  background: rgba(4,7,17,0.85);
+  backdrop-filter: blur(8px);
+}
+.modal-content {
+  animation: modalIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* === TOAST === */
+.toast {
+  animation: toastIn 0.4s cubic-bezier(0.22, 1, 0.36, 1), toastOut 0.3s 2.7s ease-in forwards;
+}
+@keyframes toastIn { from { opacity: 0; transform: translateY(20px) scale(0.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes toastOut { to { opacity: 0; transform: translateY(-10px) scale(0.95); } }
+
+/* === SKELETON === */
+.skeleton {
+  background: linear-gradient(90deg, rgba(30,41,59,0.5) 25%, rgba(51,65,85,0.3) 50%, rgba(30,41,59,0.5) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* === KANBAN COLUMNS === */
+.kanban-col { min-height: 200px; }
+.kanban-col .drop-zone {
+  min-height: 60px;
+  transition: all 0.3s;
+  border: 2px dashed transparent;
+  border-radius: 12px;
+}
+.kanban-col .drop-zone.drag-over {
+  border-color: rgba(245,147,0,0.3);
+  background: rgba(245,147,0,0.03);
+}
+
+/* === PULL TO REFRESH === */
+.ptr-indicator {
+  height: 0;
+  overflow: hidden;
+  transition: height 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ptr-indicator.pulling { height: 50px; }
+.ptr-indicator svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* === MOBILE BOTTOM NAV === */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.bottom-nav-item {
+  transition: all 0.25s;
+}
+.bottom-nav-item.active {
+  color: #ffc53d;
+}
+.bottom-nav-item.active .nav-dot {
+  opacity: 1;
+  transform: scaleX(1);
+}
+.nav-dot {
+  opacity: 0;
+  transform: scaleX(0);
+  transition: all 0.25s;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 768px) {
+  .bottom-nav { display: flex; }
+  .desktop-tabs { display: none !important; }
+  .desktop-header-actions { display: none !important; }
+  .mobile-header { display: flex !important; }
+  body { padding-bottom: 72px; }
+  .kanban-mobile { 
+    display: flex; 
+    overflow-x: auto; 
+    scroll-snap-type: x mandatory; 
+    -webkit-overflow-scrolling: touch;
+    gap: 16px;
+    padding: 0 16px;
+  }
+  .kanban-mobile > div { 
+    min-width: 85vw; 
+    scroll-snap-align: start; 
+    flex-shrink: 0;
+  }
+  .stat-card { min-width: 0; }
+  .stats-grid-mobile { grid-template-columns: repeat(2, 1fr) !important; }
+  .modal-content { 
+    width: 100% !important; 
+    max-width: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-wrapper table { min-width: 800px; }
+  .lead-card .quick-actions { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 480px) {
+  .kanban-mobile > div { min-width: 90vw; }
+}
+
+/* === OUTREACH MODAL === */
+.outreach-textarea {
+  background: rgba(15,23,42,0.6);
+  border: 1px solid rgba(148,163,184,0.1);
+  transition: border-color 0.3s;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.outreach-textarea:focus {
+  border-color: rgba(245,147,0,0.4);
+  outline: none;
+}
+
+/* === CHANNEL TOGGLE === */
+.channel-btn {
+  transition: all 0.25s;
+  border: 1px solid rgba(148,163,184,0.1);
+}
+.channel-btn.active-wa {
+  background: rgba(37,211,102,0.15);
+  border-color: rgba(37,211,102,0.4);
+  color: #25d366;
+}
+.channel-btn.active-email {
+  background: rgba(245,147,0,0.15);
+  border-color: rgba(245,147,0,0.4);
+  color: #f59300;
+}
+
+/* Floating Action Button */
+.fab {
+  position: fixed;
+  bottom: 88px;
+  left: 20px;
+  z-index: 45;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f59300, #ffc53d);
+  color: #070b14;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  box-shadow: 0 8px 32px rgba(245,147,0,0.3);
+  transition: all 0.3s;
+}
+.fab:active { transform: scale(0.92); }
+@media (max-width: 768px) { .fab { display: flex; } }
+
+/* Column header pill */
+.col-pill {
+  background: linear-gradient(135deg, rgba(15,23,42,0.9), rgba(15,23,42,0.6));
+  border: 1px solid rgba(148,163,184,0.06);
+  backdrop-filter: blur(10px);
+}
+
+/* Empty state */
+.empty-state {
+  animation: emptyFloat 3s ease-in-out infinite;
+}
+@keyframes emptyFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
 </style>
 </head>
-<body class="min-h-screen">
+<body>
 
-<!-- Top Bar -->
-<header class="bg-slate-800/80 border-b border-slate-700 px-6 py-3 flex items-center justify-between sticky top-0 z-40">
-  <div class="flex items-center gap-4">
-    <h1 class="text-xl font-bold">☀️ Solar OS Mivne — Sales Pipeline</h1>
-    <span id="leadCount" class="text-sm bg-slate-700 px-3 py-1 rounded-full"></span>
+<!-- Ambient Glows -->
+<div class="ambient-glow glow-solar"></div>
+<div class="ambient-glow glow-volt"></div>
+<div class="ambient-glow glow-center"></div>
+
+<!-- Toast Container -->
+<div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 items-center pointer-events-none"></div>
+
+<!-- Pull to Refresh Indicator -->
+<div id="ptrIndicator" class="ptr-indicator">
+  <svg class="w-5 h-5 text-solar-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+</div>
+
+<!-- ============ HEADER ============ -->
+<header class="glass-strong sticky top-0 z-40 border-b border-white/5">
+  <div class="px-4 md:px-6 py-3 flex items-center justify-between">
+    <!-- Logo -->
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-solar-400 to-solar-600 flex items-center justify-center text-lg font-bold text-abyss-900 font-display">S</div>
+      <div class="hidden sm:block">
+        <h1 class="font-display text-base font-bold tracking-tight bg-gradient-to-r from-solar-300 to-solar-500 bg-clip-text text-transparent">Solar OS</h1>
+        <p class="text-[10px] text-slate-500 -mt-0.5 tracking-widest uppercase">Sales Pipeline</p>
+      </div>
+      <span id="leadCount" class="text-xs glass rounded-full px-3 py-1 text-slate-300 font-medium mr-2"></span>
+    </div>
+
+    <!-- Desktop Actions -->
+    <div class="desktop-header-actions flex items-center gap-3">
+      <div class="relative">
+        <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input id="searchBox" type="text" placeholder="חיפוש..." class="bg-white/5 border border-white/5 rounded-xl pr-10 pl-4 py-2 text-sm w-52 focus:outline-none focus:border-solar-500/40 transition-colors placeholder:text-slate-600">
+      </div>
+      <select id="tierFilter" class="bg-white/5 border border-white/5 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-solar-500/40 transition-colors appearance-none cursor-pointer">
+        <option value="all">כל הקטגוריות</option>
+        <option value="נדל״ן">🏢 נדל״ן</option>
+        <option value="קיבוץ/מועצה">🌾 קיבוץ/מועצה</option>
+        <option value="משקיע/תעשייה">💼 משקיע/תעשייה</option>
+      </select>
+      <button onclick="showAddModal()" class="bg-gradient-to-r from-solar-500 to-solar-400 hover:from-solar-400 hover:to-solar-300 text-abyss-900 px-5 py-2 rounded-xl text-sm font-bold transition-all hover:shadow-lg hover:shadow-solar-500/20">+ ליד חדש</button>
+      <button onclick="exportCSV()" class="glass hover:bg-white/10 px-4 py-2 rounded-xl text-sm transition-all" title="ייצוא CSV">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      </button>
+    </div>
+
+    <!-- Mobile Header -->
+    <div class="mobile-header hidden items-center gap-2">
+      <button onclick="toggleMobileSearch()" class="glass p-2 rounded-xl">
+        <svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </button>
+      <button onclick="exportCSV()" class="glass p-2 rounded-xl">
+        <svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M7 20h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v13a2 2 0 002 2z"/></svg>
+      </button>
+    </div>
   </div>
-  <div class="flex items-center gap-3">
-    <input id="searchBox" type="text" placeholder="חיפוש ליד..." class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-sm w-48 focus:outline-none focus:border-blue-500">
-    <select id="tierFilter" class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none">
-      <option value="all">כל הקטגוריות</option>
-      <option value="נדל״ן">נדל״ן</option>
-      <option value="קיבוץ/מועצה">קיבוץ/מועצה</option>
-      <option value="משקיע/תעשייה">משקיע/תעשייה</option>
-    </select>
-    <button onclick="showAddModal()" class="bg-blue-600 hover:bg-blue-700 px-4 py-1.5 rounded-lg text-sm font-medium">+ ליד חדש</button>
-    <button onclick="exportCSV()" class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg text-sm">📥 CSV</button>
+
+  <!-- Mobile Search Bar (hidden by default) -->
+  <div id="mobileSearch" class="hidden px-4 pb-3">
+    <div class="flex gap-2">
+      <input id="searchBoxMobile" type="text" placeholder="חיפוש ליד..." class="flex-1 bg-white/5 border border-white/5 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-solar-500/40">
+      <select id="tierFilterMobile" class="bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-sm focus:outline-none">
+        <option value="all">הכל</option>
+        <option value="נדל״ן">🏢</option>
+        <option value="קיבוץ/מועצה">🌾</option>
+        <option value="משקיע/תעשייה">💼</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Desktop Tabs -->
+  <div class="desktop-tabs flex gap-1 px-4 md:px-6">
+    <button onclick="switchView('kanban')" id="tab-kanban" class="tab-btn active px-5 py-3 text-sm font-medium">
+      <span class="flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7"/></svg>
+        Kanban
+      </span>
+    </button>
+    <button onclick="switchView('table')" id="tab-table" class="tab-btn px-5 py-3 text-sm font-medium">
+      <span class="flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        טבלה
+      </span>
+    </button>
+    <button onclick="switchView('stats')" id="tab-stats" class="tab-btn px-5 py-3 text-sm font-medium">
+      <span class="flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        סטטיסטיקות
+      </span>
+    </button>
+    <button onclick="switchView('outreach')" id="tab-outreach" class="tab-btn px-5 py-3 text-sm font-medium">
+      <span class="flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        Outreach
+      </span>
+    </button>
   </div>
 </header>
 
-<!-- Tabs -->
-<div class="flex border-b border-slate-700 px-6 bg-slate-800/50">
-  <button onclick="switchView('kanban')" id="tab-kanban" class="px-4 py-3 text-sm font-medium tab-active">📋 Kanban</button>
-  <button onclick="switchView('table')" id="tab-table" class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200">📊 טבלה</button>
-  <button onclick="switchView('stats')" id="tab-stats" class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200">📈 סטטיסטיקות</button>
-  <button onclick="switchView('outreach')" id="tab-outreach" class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200">📧 תבניות Outreach</button>
-</div>
-
-<!-- Stats Summary -->
-<div id="statsBar" class="grid grid-cols-6 gap-3 px-6 py-4">
-  <div class="bg-slate-800 rounded-lg p-3 text-center">
-    <div class="text-2xl font-bold" id="stat-total">0</div>
-    <div class="text-xs text-slate-400">סה״כ לידים</div>
+<!-- ============ STATS BAR ============ -->
+<div id="statsBar" class="grid grid-cols-3 md:grid-cols-6 stats-grid-mobile gap-2 md:gap-3 px-4 md:px-6 py-4 relative z-10">
+  <div class="stat-card glass rounded-2xl p-3 md:p-4 text-center">
+    <div class="text-xl md:text-2xl font-bold font-display" id="stat-total">0</div>
+    <div class="text-[10px] md:text-xs text-slate-500 mt-1">סה״כ לידים</div>
   </div>
-  <div class="bg-slate-800 rounded-lg p-3 text-center">
-    <div class="text-2xl font-bold text-red-400" id="stat-new">0</div>
-    <div class="text-xs text-slate-400">חדש</div>
+  <div class="stat-card glass rounded-2xl p-3 md:p-4 text-center">
+    <div class="text-xl md:text-2xl font-bold font-display text-red-400" id="stat-new">0</div>
+    <div class="text-[10px] md:text-xs text-slate-500 mt-1">חדש</div>
   </div>
-  <div class="bg-slate-800 rounded-lg p-3 text-center">
-    <div class="text-2xl font-bold text-yellow-400" id="stat-contacted">0</div>
-    <div class="text-xs text-slate-400">נוצר קשר</div>
+  <div class="stat-card glass rounded-2xl p-3 md:p-4 text-center">
+    <div class="text-xl md:text-2xl font-bold font-display text-yellow-400" id="stat-contacted">0</div>
+    <div class="text-[10px] md:text-xs text-slate-500 mt-1">נוצר קשר</div>
   </div>
-  <div class="bg-slate-800 rounded-lg p-3 text-center">
-    <div class="text-2xl font-bold text-blue-400" id="stat-meeting">0</div>
-    <div class="text-xs text-slate-400">פגישה</div>
+  <div class="stat-card glass rounded-2xl p-3 md:p-4 text-center">
+    <div class="text-xl md:text-2xl font-bold font-display text-volt-400" id="stat-meeting">0</div>
+    <div class="text-[10px] md:text-xs text-slate-500 mt-1">פגישה</div>
   </div>
-  <div class="bg-slate-800 rounded-lg p-3 text-center">
-    <div class="text-2xl font-bold text-purple-400" id="stat-negotiation">0</div>
-    <div class="text-xs text-slate-400">משא״מ</div>
+  <div class="stat-card glass rounded-2xl p-3 md:p-4 text-center">
+    <div class="text-xl md:text-2xl font-bold font-display text-purple-400" id="stat-negotiation">0</div>
+    <div class="text-[10px] md:text-xs text-slate-500 mt-1">משא״מ</div>
   </div>
-  <div class="bg-slate-800 rounded-lg p-3 text-center">
-    <div class="text-2xl font-bold text-green-400" id="stat-closed">0</div>
-    <div class="text-xs text-slate-400">נסגר ✓</div>
+  <div class="stat-card glass rounded-2xl p-3 md:p-4 text-center">
+    <div class="text-xl md:text-2xl font-bold font-display text-emerald-400" id="stat-closed">0</div>
+    <div class="text-[10px] md:text-xs text-slate-500 mt-1">נסגר ✓</div>
   </div>
 </div>
 
-<!-- Main Content -->
-<main class="px-6 pb-8">
-  <!-- Kanban View -->
-  <div id="view-kanban" class="grid grid-cols-5 gap-4">
-    <div class="kanban-col" id="col-new">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="font-semibold text-red-400">🔴 חדש</h3>
-        <span class="text-xs bg-red-900/30 text-red-400 px-2 py-0.5 rounded-full" id="count-new">0</span>
-      </div>
-      <div class="space-y-2" id="cards-new" ondragover="allowDrop(event)" ondrop="drop(event, 'new')"></div>
-    </div>
-    <div class="kanban-col" id="col-contacted">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="font-semibold text-yellow-400">🟡 נוצר קשר</h3>
-        <span class="text-xs bg-yellow-900/30 text-yellow-400 px-2 py-0.5 rounded-full" id="count-contacted">0</span>
-      </div>
-      <div class="space-y-2" id="cards-contacted" ondragover="allowDrop(event)" ondrop="drop(event, 'contacted')"></div>
-    </div>
-    <div class="kanban-col" id="col-meeting">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="font-semibold text-blue-400">🔵 פגישה</h3>
-        <span class="text-xs bg-blue-900/30 text-blue-400 px-2 py-0.5 rounded-full" id="count-meeting">0</span>
-      </div>
-      <div class="space-y-2" id="cards-meeting" ondragover="allowDrop(event)" ondrop="drop(event, 'meeting')"></div>
-    </div>
-    <div class="kanban-col" id="col-negotiation">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="font-semibold text-purple-400">🟣 משא״מ</h3>
-        <span class="text-xs bg-purple-900/30 text-purple-400 px-2 py-0.5 rounded-full" id="count-negotiation">0</span>
-      </div>
-      <div class="space-y-2" id="cards-negotiation" ondragover="allowDrop(event)" ondrop="drop(event, 'negotiation')"></div>
-    </div>
-    <div class="kanban-col" id="col-closed">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="font-semibold text-green-400">🟢 נסגר</h3>
-        <span class="text-xs bg-green-900/30 text-green-400 px-2 py-0.5 rounded-full" id="count-closed">0</span>
-      </div>
-      <div class="space-y-2" id="cards-closed" ondragover="allowDrop(event)" ondrop="drop(event, 'closed')"></div>
-    </div>
+<!-- ============ MAIN CONTENT ============ -->
+<main class="px-4 md:px-6 pb-8 relative z-10">
+
+  <!-- KANBAN VIEW -->
+  <div id="view-kanban" class="view-panel">
+    <div class="kanban-mobile md:grid md:grid-cols-5 gap-4" id="kanbanContainer"></div>
   </div>
 
-  <!-- Table View -->
-  <div id="view-table" class="hidden">
-    <div class="bg-slate-800 rounded-lg overflow-hidden">
+  <!-- TABLE VIEW -->
+  <div id="view-table" class="hidden view-panel">
+    <div class="glass rounded-2xl overflow-hidden table-wrapper">
       <table class="w-full text-sm">
-        <thead class="bg-slate-700">
-          <tr>
-            <th class="text-right px-4 py-3 font-medium">חברה</th>
-            <th class="text-right px-4 py-3 font-medium">קטגוריה</th>
-            <th class="text-right px-4 py-3 font-medium">MWp</th>
-            <th class="text-right px-4 py-3 font-medium">איש קשר</th>
-            <th class="text-right px-4 py-3 font-medium">סטטוס</th>
-            <th class="text-right px-4 py-3 font-medium">חום</th>
-            <th class="text-right px-4 py-3 font-medium">ערך חודשי</th>
-            <th class="text-right px-4 py-3 font-medium">עדכון אחרון</th>
-            <th class="text-right px-4 py-3 font-medium">פעולות</th>
+        <thead>
+          <tr class="bg-white/5">
+            <th class="text-right px-4 py-3 font-medium text-slate-400 text-xs uppercase tracking-wider">חברה</th>
+            <th class="text-right px-4 py-3 font-medium text-slate-400 text-xs uppercase tracking-wider">קטגוריה</th>
+            <th class="text-right px-4 py-3 font-medium text-slate-400 text-xs uppercase tracking-wider">MWp</th>
+            <th class="text-right px-4 py-3 font-medium text-slate-400 text-xs uppercase tracking-wider">איש קשר</th>
+            <th class="text-right px-4 py-3 font-medium text-slate-400 text-xs uppercase tracking-wider">סטטוס</th>
+            <th class="text-right px-4 py-3 font-medium text-slate-400 text-xs uppercase tracking-wider">חום</th>
+            <th class="text-right px-4 py-3 font-medium text-slate-400 text-xs uppercase tracking-wider">ערך חודשי</th>
+            <th class="text-right px-4 py-3 font-medium text-slate-400 text-xs uppercase tracking-wider">פעולות</th>
           </tr>
         </thead>
         <tbody id="tableBody"></tbody>
@@ -146,183 +519,290 @@ body { background: #0f172a; color: #e2e8f0; }
     </div>
   </div>
 
-  <!-- Stats View -->
-  <div id="view-stats" class="hidden grid grid-cols-2 gap-6">
-    <div class="bg-slate-800 rounded-lg p-6">
-      <h3 class="font-semibold mb-4">לפי קטגוריה</h3>
+  <!-- STATS VIEW -->
+  <div id="view-stats" class="hidden view-panel grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+    <div class="glass rounded-2xl p-5 md:p-6">
+      <h3 class="font-display font-bold mb-4 text-sm uppercase tracking-wider text-slate-400">לפי קטגוריה</h3>
       <div id="chartCategory" class="space-y-3"></div>
     </div>
-    <div class="bg-slate-800 rounded-lg p-6">
-      <h3 class="font-semibold mb-4">לפי חום</h3>
+    <div class="glass rounded-2xl p-5 md:p-6">
+      <h3 class="font-display font-bold mb-4 text-sm uppercase tracking-wider text-slate-400">לפי חום</h3>
       <div id="chartHeat" class="space-y-3"></div>
     </div>
-    <div class="bg-slate-800 rounded-lg p-6">
-      <h3 class="font-semibold mb-4">פוטנציאל הכנסה חודשית</h3>
-      <div id="revenuePotential" class="text-3xl font-bold text-green-400"></div>
-      <div class="text-slate-400 text-sm mt-2">מבוסס על ערך ממוצע לליד</div>
+    <div class="glass rounded-2xl p-5 md:p-6">
+      <h3 class="font-display font-bold mb-4 text-sm uppercase tracking-wider text-slate-400">פוטנציאל הכנסה חודשית</h3>
+      <div id="revenuePotential" class="text-4xl font-display font-bold bg-gradient-to-r from-emerald-400 to-emerald-300 bg-clip-text text-transparent"></div>
+      <div class="text-slate-500 text-sm mt-2">מבוסס על ערך ממוצע לליד</div>
     </div>
-    <div class="bg-slate-800 rounded-lg p-6">
-      <h3 class="font-semibold mb-4">Conversion Funnel</h3>
+    <div class="glass rounded-2xl p-5 md:p-6">
+      <h3 class="font-display font-bold mb-4 text-sm uppercase tracking-wider text-slate-400">Conversion Funnel</h3>
       <div id="funnel" class="space-y-2"></div>
     </div>
   </div>
 
-  <!-- Outreach Templates View -->
-  <div id="view-outreach" class="hidden space-y-4">
-    <div class="bg-slate-800 rounded-lg p-6">
-      <h3 class="font-semibold mb-2">📧 תבנית — נדל״ן</h3>
-      <pre class="bg-slate-900 p-4 rounded text-sm whitespace-pre-wrap leading-relaxed" id="template-realestate"></pre>
-      <button onclick="copyTemplate('template-realestate')" class="mt-2 text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded">📋 העתק</button>
+  <!-- OUTREACH VIEW -->
+  <div id="view-outreach" class="hidden view-panel space-y-4">
+    <div class="glass rounded-2xl p-5 md:p-6">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400">🏢</div>
+        <h3 class="font-display font-bold">תבנית — נדל״ן</h3>
+      </div>
+      <pre class="bg-abyss-900/50 border border-white/5 p-4 rounded-xl text-sm whitespace-pre-wrap leading-relaxed text-slate-300" id="template-realestate"></pre>
+      <button onclick="copyTemplate('template-realestate')" class="mt-3 glass hover:bg-white/10 px-4 py-2 rounded-xl text-xs transition-all flex items-center gap-2">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        העתק
+      </button>
     </div>
-    <div class="bg-slate-800 rounded-lg p-6">
-      <h3 class="font-semibold mb-2">📧 תבנית — קיבוץ / מועצה אזורית</h3>
-      <pre class="bg-slate-900 p-4 rounded text-sm whitespace-pre-wrap leading-relaxed" id="template-kibbutz"></pre>
-      <button onclick="copyTemplate('template-kibbutz')" class="mt-2 text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded">📋 העתק</button>
+    <div class="glass rounded-2xl p-5 md:p-6">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center text-yellow-400">🌾</div>
+        <h3 class="font-display font-bold">תבנית — קיבוץ / מועצה</h3>
+      </div>
+      <pre class="bg-abyss-900/50 border border-white/5 p-4 rounded-xl text-sm whitespace-pre-wrap leading-relaxed text-slate-300" id="template-kibbutz"></pre>
+      <button onclick="copyTemplate('template-kibbutz')" class="mt-3 glass hover:bg-white/10 px-4 py-2 rounded-xl text-xs transition-all flex items-center gap-2">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        העתק
+      </button>
     </div>
-    <div class="bg-slate-800 rounded-lg p-6">
-      <h3 class="font-semibold mb-2">📧 תבנית — משקיע / תעשייה</h3>
-      <pre class="bg-slate-900 p-4 rounded text-sm whitespace-pre-wrap leading-relaxed" id="template-investor"></pre>
-      <button onclick="copyTemplate('template-investor')" class="mt-2 text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded">📋 העתק</button>
+    <div class="glass rounded-2xl p-5 md:p-6">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">💼</div>
+        <h3 class="font-display font-bold">תבנית — משקיע / תעשייה</h3>
+      </div>
+      <pre class="bg-abyss-900/50 border border-white/5 p-4 rounded-xl text-sm whitespace-pre-wrap leading-relaxed text-slate-300" id="template-investor"></pre>
+      <button onclick="copyTemplate('template-investor')" class="mt-3 glass hover:bg-white/10 px-4 py-2 rounded-xl text-xs transition-all flex items-center gap-2">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        העתק
+      </button>
     </div>
   </div>
 </main>
 
-<!-- Lead Detail Modal -->
-<div id="leadModal" class="fixed inset-0 modal-bg z-50 hidden flex items-center justify-center">
-  <div class="bg-slate-800 rounded-xl w-[600px] max-h-[80vh] overflow-y-auto border border-slate-700 shadow-2xl">
-    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700">
-      <h2 id="modal-title" class="text-lg font-bold"></h2>
-      <button onclick="closeModal()" class="text-slate-400 hover:text-white text-xl">✕</button>
+<!-- FAB (Mobile) -->
+<button class="fab" onclick="showAddModal()">+</button>
+
+<!-- ============ BOTTOM NAV (Mobile) ============ -->
+<nav class="bottom-nav glass-strong border-t border-white/5 justify-around items-center px-2 py-2">
+  <button onclick="switchView('kanban')" class="bottom-nav-item active flex flex-col items-center gap-0.5 px-3 py-1" data-view="kanban">
+    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7"/></svg>
+    <span class="text-[10px]">Kanban</span>
+    <div class="nav-dot w-1 h-1 rounded-full bg-solar-400 mt-0.5"></div>
+  </button>
+  <button onclick="switchView('table')" class="bottom-nav-item flex flex-col items-center gap-0.5 px-3 py-1" data-view="table">
+    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+    <span class="text-[10px]">טבלה</span>
+    <div class="nav-dot w-1 h-1 rounded-full bg-solar-400 mt-0.5"></div>
+  </button>
+  <button onclick="switchView('stats')" class="bottom-nav-item flex flex-col items-center gap-0.5 px-3 py-1" data-view="stats">
+    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    <span class="text-[10px]">סטטיסטיקות</span>
+    <div class="nav-dot w-1 h-1 rounded-full bg-solar-400 mt-0.5"></div>
+  </button>
+  <button onclick="switchView('outreach')" class="bottom-nav-item flex flex-col items-center gap-0.5 px-3 py-1" data-view="outreach">
+    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+    <span class="text-[10px]">Outreach</span>
+    <div class="nav-dot w-1 h-1 rounded-full bg-solar-400 mt-0.5"></div>
+  </button>
+</nav>
+
+<!-- ============ LEAD DETAIL MODAL ============ -->
+<div id="leadModal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+  <div class="modal-content glass-strong rounded-2xl w-full max-w-[640px] max-h-[85vh] overflow-y-auto border border-white/10 shadow-2xl">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-white/5 sticky top-0 glass-strong rounded-t-2xl z-10">
+      <h2 id="modal-title" class="text-lg font-display font-bold"></h2>
+      <button onclick="closeModal()" class="text-slate-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
     </div>
     <div class="p-6 space-y-4" id="modal-body"></div>
-    <div class="flex gap-2 px-6 pb-4">
-      <button onclick="saveLead()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium">💾 שמור</button>
-      <button onclick="deleteLead()" class="bg-red-600/20 hover:bg-red-600/40 text-red-400 px-4 py-2 rounded-lg text-sm">🗑 מחק</button>
+    <div class="flex flex-wrap gap-2 px-6 pb-5 border-t border-white/5 pt-4">
+      <button onclick="saveLead()" class="bg-gradient-to-r from-solar-500 to-solar-400 text-abyss-900 px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:shadow-lg hover:shadow-solar-500/20">💾 שמור</button>
+      <button onclick="openOutreachModal()" class="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:shadow-lg hover:shadow-emerald-500/20">📨 שלח הודעה</button>
+      <button onclick="deleteLead()" class="glass text-red-400 hover:bg-red-500/10 px-4 py-2.5 rounded-xl text-sm transition-all mr-auto">🗑 מחק</button>
     </div>
   </div>
 </div>
 
-<!-- Add Lead Modal -->
-<div id="addModal" class="fixed inset-0 modal-bg z-50 hidden flex items-center justify-center">
-  <div class="bg-slate-800 rounded-xl w-[500px] border border-slate-700 shadow-2xl">
-    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700">
-      <h2 class="text-lg font-bold">ליד חדש</h2>
-      <button onclick="closeAddModal()" class="text-slate-400 hover:text-white text-xl">✕</button>
+<!-- ============ ADD LEAD MODAL ============ -->
+<div id="addModal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+  <div class="modal-content glass-strong rounded-2xl w-full max-w-[520px] max-h-[85vh] overflow-y-auto border border-white/10 shadow-2xl">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-white/5">
+      <h2 class="text-lg font-display font-bold">ליד חדש</h2>
+      <button onclick="closeAddModal()" class="text-slate-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
     </div>
     <div class="p-6 space-y-3">
-      <input id="add-name" type="text" placeholder="שם חברה *" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
-      <select id="add-tier" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm">
-        <option value="נדל״ן">נדל״ן</option>
-        <option value="קיבוץ/מועצה">קיבוץ/מועצה</option>
-        <option value="משקיע/תעשייה">משקיע/תעשייה</option>
+      <input id="add-name" type="text" placeholder="שם חברה *" class="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-solar-500/40 transition-colors">
+      <select id="add-tier" class="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-solar-500/40">
+        <option value="נדל״ן">🏢 נדל״ן</option>
+        <option value="קיבוץ/מועצה">🌾 קיבוץ/מועצה</option>
+        <option value="משקיע/תעשייה">💼 משקיע/תעשייה</option>
       </select>
-      <input id="add-contact" type="text" placeholder="איש קשר" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
-      <input id="add-role" type="text" placeholder="תפקיד" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
-      <input id="add-mwp" type="number" step="0.1" placeholder="הספק (MWp)" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
-      <input id="add-value" type="number" placeholder="ערך חודשי (₪)" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
-      <select id="add-heat" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm">
+      <div class="grid grid-cols-2 gap-3">
+        <input id="add-contact" type="text" placeholder="איש קשר" class="bg-white/5 border border-white/5 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-solar-500/40">
+        <input id="add-role" type="text" placeholder="תפקיד" class="bg-white/5 border border-white/5 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-solar-500/40">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <input id="add-phone" type="tel" placeholder="📱 טלפון" class="bg-white/5 border border-white/5 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-solar-500/40" dir="ltr">
+        <input id="add-email" type="email" placeholder="📧 אימייל" class="bg-white/5 border border-white/5 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-solar-500/40" dir="ltr">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <input id="add-mwp" type="number" step="0.1" placeholder="הספק (MWp)" class="bg-white/5 border border-white/5 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-solar-500/40">
+        <input id="add-value" type="number" placeholder="ערך חודשי (₪)" class="bg-white/5 border border-white/5 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-solar-500/40">
+      </div>
+      <select id="add-heat" class="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-solar-500/40">
         <option value="hot">🔥 חם</option>
         <option value="warm">🟡 חמים</option>
         <option value="cold">🔵 קר</option>
       </select>
-      <textarea id="add-notes" placeholder="הערות" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm h-20 focus:outline-none focus:border-blue-500"></textarea>
+      <textarea id="add-notes" placeholder="הערות" class="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-2.5 text-sm h-20 focus:outline-none focus:border-solar-500/40 resize-none"></textarea>
     </div>
-    <div class="px-6 pb-4">
-      <button onclick="addLead()" class="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium">הוסף ליד</button>
+    <div class="px-6 pb-5">
+      <button onclick="addLead()" class="w-full bg-gradient-to-r from-solar-500 to-solar-400 text-abyss-900 py-3 rounded-xl text-sm font-bold transition-all hover:shadow-lg hover:shadow-solar-500/20">הוסף ליד</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ OUTREACH MODAL ============ -->
+<div id="outreachModal" class="fixed inset-0 modal-overlay z-[60] hidden flex items-center justify-center p-4">
+  <div class="modal-content glass-strong rounded-2xl w-full max-w-[560px] max-h-[85vh] overflow-y-auto border border-white/10 shadow-2xl">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-white/5">
+      <h2 class="font-display font-bold">📨 שליחת הודעה</h2>
+      <button onclick="closeOutreachModal()" class="text-slate-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-slate-400">ל:</span>
+        <span id="outreach-to" class="text-sm font-medium text-solar-300"></span>
+      </div>
+      <!-- Channel Toggle -->
+      <div class="flex gap-2">
+        <button onclick="setOutreachChannel('whatsapp')" id="ch-wa" class="channel-btn flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          WhatsApp
+        </button>
+        <button onclick="setOutreachChannel('email')" id="ch-email" class="channel-btn flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          Email
+        </button>
+      </div>
+      <!-- Subject (email only) -->
+      <div id="outreach-subject-row" class="hidden">
+        <label class="text-xs text-slate-500 mb-1 block">נושא</label>
+        <input id="outreach-subject" type="text" value="Solar OS — ניטור סולארי חכם" class="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-solar-500/40">
+      </div>
+      <!-- Message Body -->
+      <div>
+        <label class="text-xs text-slate-500 mb-1 block">הודעה</label>
+        <textarea id="outreach-body" class="outreach-textarea w-full rounded-xl px-4 py-3 h-64 resize-none" dir="rtl"></textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 px-6 pb-5">
+      <button onclick="sendOutreach()" class="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white py-3 rounded-xl text-sm font-bold transition-all hover:shadow-lg hover:shadow-emerald-500/20 flex items-center justify-center gap-2">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+        שלח
+      </button>
     </div>
   </div>
 </div>
 
 <script>
+// ============ DATA ============
 const STORAGE_KEY = 'mivne-sales-pipeline';
 const STAGES = ['new','contacted','meeting','negotiation','closed'];
 const STAGE_LABELS = { new:'חדש', contacted:'נוצר קשר', meeting:'פגישה', negotiation:'משא״מ', closed:'נסגר' };
+const STAGE_COLORS = { new:'red', contacted:'yellow', meeting:'sky', negotiation:'purple', closed:'emerald' };
+const STAGE_ICONS = { new:'🔴', contacted:'🟡', meeting:'🔵', negotiation:'🟣', closed:'🟢' };
 
-// Default leads (will be replaced when pipeline.md loads)
 const DEFAULT_LEADS = [
-  // Tier 1 — נדל"ן (25)
-  { id:'t1-1', name:'מבנה נדל״ן', tier:'נדל״ן', contact:'רותם הראל', role:'סמנכ״ל', mwp:25, value:3000, heat:'hot', stage:'meeting', website:'mivne.co.il', notes:'Design partner. משלם 15K/חודש ל-enSight. רוצה לעזוב.', lastUpdate:'2026-02-24', activities:[{date:'2026-02-24',text:'פגישה ראשונה — הציג דרישות'}] },
-  { id:'t1-2', name:'עזריאלי קבוצה', tier:'נדל״ן', contact:'דנה עזריאלי / VP תפעול', role:'יו״ר / VP', mwp:50, value:5000, heat:'hot', stage:'new', website:'azrieli.com', notes:'קניונים+משרדים, מהגדולות בישראל, מחויבות ESG', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-3', name:'אמות השקעות', tier:'נדל״ן', contact:'יעקב אטרקצ׳י', role:'מנכ״ל', mwp:40, value:4000, heat:'hot', stage:'new', website:'amot.co.il', notes:'פארקי תעשייה ומשרדים, ~200 נכסים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-4', name:'מליסרון', tier:'נדל״ן', contact:'עופר גלייזר', role:'מנכ״ל', mwp:28, value:3500, heat:'hot', stage:'new', website:'melisron.co.il', notes:'קניונים (רמת אביב, Grand Canyon), גגות ענקיים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-5', name:'גזית גלוב', tier:'נדל״ן', contact:'ראול סרוגו', role:'מנכ״ל', mwp:20, value:2500, heat:'hot', stage:'new', website:'gazitglobe.com', notes:'נדל״ן מסחרי גלובלי, נוכחות ישראלית', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-6', name:'ביג מרכזי קניות', tier:'נדל״ן', contact:'הדי פיזנטי', role:'מנכ״ל', mwp:33, value:3500, heat:'hot', stage:'new', website:'big.co.il', notes:'~50 מרכזי קניות, גגות+חניונים סולאריים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-7', name:'שופרסל', tier:'נדל״ן', contact:'איציק אברכהן', role:'מנכ״ל', mwp:20, value:2500, heat:'warm', stage:'new', website:'shufersal.co.il', notes:'סניפים רבים עם גגות סולאריים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-8', name:'רמי לוי שיווק השקמה', tier:'נדל״ן', contact:'', role:'מנהל תפעול', mwp:13, value:2000, heat:'warm', stage:'new', website:'rami-levy.co.il', notes:'סניפים עם גגות, חניונים סולאריים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-9', name:'אלוני חץ', tier:'נדל״ן', contact:'נתן חץ', role:'מנכ״ל', mwp:18, value:2200, heat:'warm', stage:'new', website:'alony-hetz.co.il', notes:'מרכזי מסחר, לוגיסטיקה', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-10', name:'נכסים ובנין', tier:'נדל״ן', contact:'אברהם ספרין', role:'מנכ״ל', mwp:15, value:2000, heat:'warm', stage:'new', website:'pbc.co.il', notes:'נכסים מסחריים/משרדיים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-11', name:'אפריקה ישראל נכסים', tier:'נדל״ן', contact:'אביגדור קלש', role:'מנכ״ל', mwp:13, value:1800, heat:'warm', stage:'new', website:'africa-israel.com', notes:'מגדלי משרדים ומסחר', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-12', name:'אלקטרה נדל״ן', tier:'נדל״ן', contact:'', role:'', mwp:13, value:1800, heat:'warm', stage:'new', website:'electra-re.co.il', notes:'נכסים מניבים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-13', name:'ישראל קנדה (ICCR)', tier:'נדל״ן', contact:'ברק רוזן', role:'מנכ״ל', mwp:13, value:1800, heat:'warm', stage:'new', website:'icrgroup.com', notes:'מתחמי מסחר ומשרדים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-14', name:'מגה אור', tier:'נדל״ן', contact:'', role:'מנהל נכסים', mwp:15, value:2000, heat:'warm', stage:'new', website:'mega-or.co.il', notes:'מרכזים מסחריים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-15', name:'סלע נדל״ן', tier:'נדל״ן', contact:'', role:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'selacapital.co.il', notes:'נכסים מניבים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-16', name:'ריט 1', tier:'נדל״ן', contact:'שמעון אבודרהם', role:'מנכ״ל', mwp:8, value:1500, heat:'warm', stage:'new', website:'reit1.co.il', notes:'REIT — נכסים מניבים, מחויבות ESG', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-17', name:'מנרב נדל״ן', tier:'נדל״ן', contact:'אברהם נובוגרוצקי', role:'מנכ״ל', mwp:8, value:1500, heat:'warm', stage:'new', website:'manrav.co.il', notes:'פארקי תעשייה', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-18', name:'אשדר', tier:'נדל״ן', contact:'', role:'', mwp:8, value:1200, heat:'cold', stage:'new', website:'ashtdar.co.il', notes:'בעיקר מגורים, גם מסחרי', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-19', name:'דלק מוטורס (נדל״ן)', tier:'נדל״ן', contact:'', role:'', mwp:8, value:1200, heat:'cold', stage:'new', website:'delek-motors.co.il', notes:'אולמות תצוגה+מוסכים = גגות', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-20', name:'לפידות קפיטל', tier:'נדל״ן', contact:'', role:'', mwp:7, value:1000, heat:'cold', stage:'new', website:'lapidoth.co.il', notes:'נכסים מניבים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-21', name:'קסטרו מודל (FOX)', tier:'נדל״ן', contact:'', role:'מנהל לוגיסטיקה', mwp:7, value:1000, heat:'cold', stage:'new', website:'fox.co.il', notes:'מרכזים לוגיסטיים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-22', name:'שיכון ובינוי נדל״ן', tier:'נדל״ן', contact:'', role:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'shikunbinui.co.il', notes:'פרויקטי תשתית ונדל״ן', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-23', name:'מבני תעשיה', tier:'נדל״ן', contact:'', role:'', mwp:13, value:1800, heat:'warm', stage:'new', website:'mivnei.co.il', notes:'מבני תעשיה ולוגיסטיקה', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-24', name:'כלל ביטוח (נדל״ן)', tier:'נדל״ן', contact:'', role:'', mwp:8, value:1200, heat:'cold', stage:'new', website:'clal-ins.co.il', notes:'נכסים מניבים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t1-25', name:'הכשרת היישוב', tier:'נדל״ן', contact:'', role:'', mwp:8, value:1200, heat:'cold', stage:'new', website:'hachshara.co.il', notes:'נדל״ן מגוון', lastUpdate:'2026-03-02', activities:[] },
-  // Tier 2 — מועצות אזוריות (25)
-  { id:'t2-1', name:'מ.א. עמק חפר', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:15, value:2000, heat:'warm', stage:'new', website:'', notes:'מועצה גדולה, פרויקטי סולאר פעילים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-2', name:'מ.א. עמק יזרעאל', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:15, value:2000, heat:'warm', stage:'new', website:'', notes:'חקלאות + סולאר', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-3', name:'מ.א. גלבוע', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'פרויקטי אנרגיה מתחדשת', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-4', name:'מ.א. מגידו', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-5', name:'מ.א. מטה אשר', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-6', name:'מ.א. חוף הכרמל', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-7', name:'מ.א. שדות נגב', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:15, value:2000, heat:'hot', stage:'new', website:'', notes:'נגב = שמש מקסימלית', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-8', name:'מ.א. אשכול', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:15, value:2000, heat:'hot', stage:'new', website:'eshkol.org.il', notes:'פרויקטי סולאר גדולים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-9', name:'מ.א. בני שמעון', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:13, value:1800, heat:'hot', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-10', name:'מ.א. רמת נגב', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:20, value:2500, heat:'hot', stage:'new', website:'', notes:'פרויקטים סולאריים גדולים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-11', name:'מ.א. ערבה תיכונה', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:20, value:2500, heat:'hot', stage:'new', website:'', notes:'מובילים בסולאר בישראל', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-12', name:'מ.א. חבל אילות', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:15, value:2000, heat:'hot', stage:'new', website:'', notes:'קיבוצי ערבה — חלוצי סולאר', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-13', name:'מ.א. תמר', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'ערבה — סולאר מסיבי', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-14', name:'מ.א. מרחבים', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-15', name:'מ.א. מטה יהודה', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
-  // Tier 2 — קיבוצים (10)
-  { id:'t2-16', name:'קיבוץ כתורה', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:8, value:1500, heat:'hot', stage:'new', website:'', notes:'חלוצי סולאר בערבה', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-17', name:'קיבוץ קטורה', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:8, value:1500, heat:'hot', stage:'new', website:'', notes:'מייסדי ערבה פאוור', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-18', name:'קיבוץ יוטבתה', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:4, value:1000, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-19', name:'קיבוץ לוטן', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:4, value:1000, heat:'warm', stage:'new', website:'', notes:'ירוק, חלוץ סולאר', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-20', name:'קיבוץ רביבים', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:8, value:1200, heat:'warm', stage:'new', website:'', notes:'שטח מדברי', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-21', name:'קיבוץ בארי', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:4, value:1000, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-22', name:'קיבוץ ניר עוז', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:4, value:1000, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-23', name:'קיבוץ מגן', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:4, value:1000, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-24', name:'קיבוץ שמר', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:4, value:1000, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t2-25', name:'קיבוץ משאבי שדה', tier:'קיבוץ/מועצה', contact:'', role:'', mwp:4, value:1000, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
-  // Tier 3 — משקיעים/PPA/תעשייה (20)
-  { id:'t3-1', name:'ענבל אנרגיה מתחדשת', tier:'משקיע/תעשייה', contact:'', role:'', mwp:75, value:6000, heat:'hot', stage:'new', website:'', notes:'יזמי סולאר גגות — הפלטפורמה שלהם על הנכסים של אחרים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-2', name:'דוראל אנרגיה', tier:'משקיע/תעשייה', contact:'ארנון תירוש', role:'', mwp:200, value:8000, heat:'hot', stage:'contacted', website:'doralenergy.co.il', notes:'נסחרת בבורסה, PPA לתעשייה. בוטי = design partner ל-Storage OS', lastUpdate:'2026-02-24', activities:[{date:'2026-02-24',text:'פגישת היכרות — מעוניין'}] },
-  { id:'t3-3', name:'אנלייט אנרגיה מתחדשת', tier:'משקיע/תעשייה', contact:'גלעד יעבץ', role:'', mwp:300, value:10000, heat:'hot', stage:'new', website:'', notes:'מהגדולות — הם עצמם חברת סולאר, פחות fit אבל שווה לנסות', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-4', name:'OPC אנרגיה', tier:'משקיע/תעשייה', contact:'גיורא סער', role:'', mwp:75, value:5000, heat:'warm', stage:'new', website:'', notes:'אנרגיה + סולאר', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-5', name:'שלמה תעשיות', tier:'משקיע/תעשייה', contact:'', role:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'מפעלי ייצור עם PPA', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-6', name:'שטראוס גרופ', tier:'משקיע/תעשייה', contact:'', role:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'מפעלי מזון — גגות גדולים', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-7', name:'אסם-נסטלה', tier:'משקיע/תעשייה', contact:'', role:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'מפעלי ייצור', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-8', name:'טבע תעשיות', tier:'משקיע/תעשייה', contact:'', role:'', mwp:13, value:2000, heat:'warm', stage:'new', website:'', notes:'מפעלים, ESG', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-9', name:'ICL (כימיקלים לישראל)', tier:'משקיע/תעשייה', contact:'', role:'', mwp:15, value:2000, heat:'warm', stage:'new', website:'', notes:'מפעלים בנגב, סולאר', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-10', name:'מגדל ביטוח', tier:'משקיע/תעשייה', contact:'', role:'', mwp:35, value:3000, heat:'warm', stage:'new', website:'', notes:'משקיעי אנרגיה מתחדשת', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-11', name:'הראל ביטוח', tier:'משקיע/תעשייה', contact:'', role:'', mwp:35, value:3000, heat:'warm', stage:'new', website:'harel-group.co.il', notes:'משקיעי תשתיות', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-12', name:'מנורה מבטחים', tier:'משקיע/תעשייה', contact:'', role:'', mwp:20, value:2500, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-13', name:'הפניקס', tier:'משקיע/תעשייה', contact:'', role:'', mwp:20, value:2500, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-14', name:'כלל ביטוח', tier:'משקיע/תעשייה', contact:'', role:'', mwp:20, value:2500, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-15', name:'מיטב דש', tier:'משקיע/תעשייה', contact:'', role:'', mwp:15, value:2000, heat:'cold', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-16', name:'אלטשולר שחם', tier:'משקיע/תעשייה', contact:'', role:'', mwp:15, value:2000, heat:'cold', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-17', name:'נווה גד (תנובה)', tier:'משקיע/תעשייה', contact:'', role:'', mwp:8, value:1200, heat:'cold', stage:'new', website:'', notes:'מפעלי חלב — גגות', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-18', name:'פלסן', tier:'משקיע/תעשייה', contact:'', role:'', mwp:4, value:800, heat:'cold', stage:'new', website:'', notes:'מפעל, גגות', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-19', name:'קרן אינפרא', tier:'משקיע/תעשייה', contact:'', role:'', mwp:40, value:3500, heat:'warm', stage:'new', website:'', notes:'קרן תשתיות', lastUpdate:'2026-03-02', activities:[] },
-  { id:'t3-20', name:'אלומיי קפיטל', tier:'משקיע/תעשייה', contact:'', role:'', mwp:40, value:3500, heat:'warm', stage:'new', website:'', notes:'השקעות סולאר ותשתיות', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-1', name:'מבנה נדל״ן', tier:'נדל״ן', contact:'רותם הראל', role:'סמנכ״ל', phone:'', email:'', mwp:25, value:3000, heat:'hot', stage:'meeting', website:'mivne.co.il', notes:'Design partner. משלם 15K/חודש ל-enSight. רוצה לעזוב.', lastUpdate:'2026-02-24', activities:[{date:'2026-02-24',text:'פגישה ראשונה — הציג דרישות'}] },
+  { id:'t1-2', name:'עזריאלי קבוצה', tier:'נדל״ן', contact:'דנה עזריאלי / VP תפעול', role:'יו״ר / VP', phone:'', email:'', mwp:50, value:5000, heat:'hot', stage:'new', website:'azrieli.com', notes:'קניונים+משרדים, מהגדולות בישראל, מחויבות ESG', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-3', name:'אמות השקעות', tier:'נדל״ן', contact:'יעקב אטרקצ׳י', role:'מנכ״ל', phone:'', email:'', mwp:40, value:4000, heat:'hot', stage:'new', website:'amot.co.il', notes:'פארקי תעשייה ומשרדים, ~200 נכסים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-4', name:'מליסרון', tier:'נדל״ן', contact:'עופר גלייזר', role:'מנכ״ל', phone:'', email:'', mwp:28, value:3500, heat:'hot', stage:'new', website:'melisron.co.il', notes:'קניונים (רמת אביב, Grand Canyon), גגות ענקיים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-5', name:'גזית גלוב', tier:'נדל״ן', contact:'ראול סרוגו', role:'מנכ״ל', phone:'', email:'', mwp:20, value:2500, heat:'hot', stage:'new', website:'gazitglobe.com', notes:'נדל״ן מסחרי גלובלי, נוכחות ישראלית', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-6', name:'ביג מרכזי קניות', tier:'נדל״ן', contact:'הדי פיזנטי', role:'מנכ״ל', phone:'', email:'', mwp:33, value:3500, heat:'hot', stage:'new', website:'big.co.il', notes:'~50 מרכזי קניות, גגות+חניונים סולאריים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-7', name:'שופרסל', tier:'נדל״ן', contact:'איציק אברכהן', role:'מנכ״ל', phone:'', email:'', mwp:20, value:2500, heat:'warm', stage:'new', website:'shufersal.co.il', notes:'סניפים רבים עם גגות סולאריים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-8', name:'רמי לוי שיווק השקמה', tier:'נדל״ן', contact:'', role:'מנהל תפעול', phone:'', email:'', mwp:13, value:2000, heat:'warm', stage:'new', website:'rami-levy.co.il', notes:'סניפים עם גגות, חניונים סולאריים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-9', name:'אלוני חץ', tier:'נדל״ן', contact:'נתן חץ', role:'מנכ״ל', phone:'', email:'', mwp:18, value:2200, heat:'warm', stage:'new', website:'alony-hetz.co.il', notes:'מרכזי מסחר, לוגיסטיקה', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-10', name:'נכסים ובנין', tier:'נדל״ן', contact:'אברהם ספרין', role:'מנכ״ל', phone:'', email:'', mwp:15, value:2000, heat:'warm', stage:'new', website:'pbc.co.il', notes:'נכסים מסחריים/משרדיים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-11', name:'אפריקה ישראל נכסים', tier:'נדל״ן', contact:'אביגדור קלש', role:'מנכ״ל', phone:'', email:'', mwp:13, value:1800, heat:'warm', stage:'new', website:'africa-israel.com', notes:'מגדלי משרדים ומסחר', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-12', name:'אלקטרה נדל״ן', tier:'נדל״ן', contact:'', role:'', phone:'', email:'', mwp:13, value:1800, heat:'warm', stage:'new', website:'electra-re.co.il', notes:'נכסים מניבים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-13', name:'ישראל קנדה (ICCR)', tier:'נדל״ן', contact:'ברק רוזן', role:'מנכ״ל', phone:'', email:'', mwp:13, value:1800, heat:'warm', stage:'new', website:'icrgroup.com', notes:'מתחמי מסחר ומשרדים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-14', name:'מגה אור', tier:'נדל״ן', contact:'', role:'מנהל נכסים', phone:'', email:'', mwp:15, value:2000, heat:'warm', stage:'new', website:'mega-or.co.il', notes:'מרכזים מסחריים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-15', name:'סלע נדל״ן', tier:'נדל״ן', contact:'', role:'', phone:'', email:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'selacapital.co.il', notes:'נכסים מניבים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-16', name:'ריט 1', tier:'נדל״ן', contact:'שמעון אבודרהם', role:'מנכ״ל', phone:'', email:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'reit1.co.il', notes:'REIT — נכסים מניבים, מחויבות ESG', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-17', name:'מנרב נדל״ן', tier:'נדל״ן', contact:'אברהם נובוגרוצקי', role:'מנכ״ל', phone:'', email:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'manrav.co.il', notes:'פארקי תעשייה', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-18', name:'אשדר', tier:'נדל״ן', contact:'', role:'', phone:'', email:'', mwp:8, value:1200, heat:'cold', stage:'new', website:'ashtdar.co.il', notes:'בעיקר מגורים, גם מסחרי', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-19', name:'דלק מוטורס (נדל״ן)', tier:'נדל״ן', contact:'', role:'', phone:'', email:'', mwp:8, value:1200, heat:'cold', stage:'new', website:'delek-motors.co.il', notes:'אולמות תצוגה+מוסכים = גגות', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-20', name:'לפידות קפיטל', tier:'נדל״ן', contact:'', role:'', phone:'', email:'', mwp:7, value:1000, heat:'cold', stage:'new', website:'lapidoth.co.il', notes:'נכסים מניבים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-21', name:'קסטרו מודל (FOX)', tier:'נדל״ן', contact:'', role:'מנהל לוגיסטיקה', phone:'', email:'', mwp:7, value:1000, heat:'cold', stage:'new', website:'fox.co.il', notes:'מרכזים לוגיסטיים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-22', name:'שיכון ובינוי נדל״ן', tier:'נדל״ן', contact:'', role:'', phone:'', email:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'shikunbinui.co.il', notes:'פרויקטי תשתית ונדל״ן', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-23', name:'מבני תעשיה', tier:'נדל״ן', contact:'', role:'', phone:'', email:'', mwp:13, value:1800, heat:'warm', stage:'new', website:'mivnei.co.il', notes:'מבני תעשיה ולוגיסטיקה', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-24', name:'כלל ביטוח (נדל״ן)', tier:'נדל״ן', contact:'', role:'', phone:'', email:'', mwp:8, value:1200, heat:'cold', stage:'new', website:'clal-ins.co.il', notes:'נכסים מניבים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t1-25', name:'הכשרת היישוב', tier:'נדל״ן', contact:'', role:'', phone:'', email:'', mwp:8, value:1200, heat:'cold', stage:'new', website:'hachshara.co.il', notes:'נדל״ן מגוון', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-1', name:'מ.א. עמק חפר', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:15, value:2000, heat:'warm', stage:'new', website:'', notes:'מועצה גדולה, פרויקטי סולאר פעילים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-2', name:'מ.א. עמק יזרעאל', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:15, value:2000, heat:'warm', stage:'new', website:'', notes:'חקלאות + סולאר', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-3', name:'מ.א. גלבוע', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'פרויקטי אנרגיה מתחדשת', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-4', name:'מ.א. מגידו', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-5', name:'מ.א. מטה אשר', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-6', name:'מ.א. חוף הכרמל', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-7', name:'מ.א. שדות נגב', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:15, value:2000, heat:'hot', stage:'new', website:'', notes:'נגב = שמש מקסימלית', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-8', name:'מ.א. אשכול', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:15, value:2000, heat:'hot', stage:'new', website:'eshkol.org.il', notes:'פרויקטי סולאר גדולים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-9', name:'מ.א. בני שמעון', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:13, value:1800, heat:'hot', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-10', name:'מ.א. רמת נגב', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:20, value:2500, heat:'hot', stage:'new', website:'', notes:'פרויקטים סולאריים גדולים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-11', name:'מ.א. ערבה תיכונה', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:20, value:2500, heat:'hot', stage:'new', website:'', notes:'מובילים בסולאר בישראל', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-12', name:'מ.א. חבל אילות', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:15, value:2000, heat:'hot', stage:'new', website:'', notes:'קיבוצי ערבה — חלוצי סולאר', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-13', name:'מ.א. תמר', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'ערבה — סולאר מסיבי', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-14', name:'מ.א. מרחבים', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-15', name:'מ.א. מטה יהודה', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-16', name:'קיבוץ כתורה', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:8, value:1500, heat:'hot', stage:'new', website:'', notes:'חלוצי סולאר בערבה', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-17', name:'קיבוץ קטורה', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:8, value:1500, heat:'hot', stage:'new', website:'', notes:'מייסדי ערבה פאוור', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-18', name:'קיבוץ יוטבתה', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:4, value:1000, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-19', name:'קיבוץ לוטן', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:4, value:1000, heat:'warm', stage:'new', website:'', notes:'ירוק, חלוץ סולאר', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-20', name:'קיבוץ רביבים', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:8, value:1200, heat:'warm', stage:'new', website:'', notes:'שטח מדברי', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-21', name:'קיבוץ בארי', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:4, value:1000, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-22', name:'קיבוץ ניר עוז', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:4, value:1000, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-23', name:'קיבוץ מגן', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:4, value:1000, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-24', name:'קיבוץ שמר', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:4, value:1000, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t2-25', name:'קיבוץ משאבי שדה', tier:'קיבוץ/מועצה', contact:'', role:'', phone:'', email:'', mwp:4, value:1000, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-1', name:'ענבל אנרגיה מתחדשת', tier:'משקיע/תעשייה', contact:'', role:'', phone:'', email:'', mwp:75, value:6000, heat:'hot', stage:'new', website:'', notes:'יזמי סולאר גגות — הפלטפורמה שלהם על הנכסים של אחרים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-2', name:'דוראל אנרגיה', tier:'משקיע/תעשייה', contact:'ארנון תירוש', role:'', phone:'', email:'', mwp:200, value:8000, heat:'hot', stage:'contacted', website:'doralenergy.co.il', notes:'נסחרת בבורסה, PPA לתעשייה. בוטי = design partner ל-Storage OS', lastUpdate:'2026-02-24', activities:[{date:'2026-02-24',text:'פגישת היכרות — מעוניין'}] },
+  { id:'t3-3', name:'אנלייט אנרגיה מתחדשת', tier:'משקיע/תעשייה', contact:'גלעד יעבץ', role:'', phone:'', email:'', mwp:300, value:10000, heat:'hot', stage:'new', website:'', notes:'מהגדולות — הם עצמם חברת סולאר, פחות fit אבל שווה לנסות', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-4', name:'OPC אנרגיה', tier:'משקיע/תעשייה', contact:'גיורא סער', role:'', phone:'', email:'', mwp:75, value:5000, heat:'warm', stage:'new', website:'', notes:'אנרגיה + סולאר', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-5', name:'שלמה תעשיות', tier:'משקיע/תעשייה', contact:'', role:'', phone:'', email:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'מפעלי ייצור עם PPA', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-6', name:'שטראוס גרופ', tier:'משקיע/תעשייה', contact:'', role:'', phone:'', email:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'מפעלי מזון — גגות גדולים', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-7', name:'אסם-נסטלה', tier:'משקיע/תעשייה', contact:'', role:'', phone:'', email:'', mwp:8, value:1500, heat:'warm', stage:'new', website:'', notes:'מפעלי ייצור', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-8', name:'טבע תעשיות', tier:'משקיע/תעשייה', contact:'', role:'', phone:'', email:'', mwp:13, value:2000, heat:'warm', stage:'new', website:'', notes:'מפעלים, ESG', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-9', name:'ICL (כימיקלים לישראל)', tier:'משקיע/תעשייה', contact:'', role:'', phone:'', email:'', mwp:15, value:2000, heat:'warm', stage:'new', website:'', notes:'מפעלים בנגב, סולאר', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-10', name:'מגדל ביטוח', tier:'משקיע/תעשייה', contact:'', role:'', phone:'', email:'', mwp:35, value:3000, heat:'warm', stage:'new', website:'', notes:'משקיעי אנרגיה מתחדשת', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-11', name:'הראל ביטוח', tier:'משקיע/תעשייה', contact:'', role:'', phone:'', email:'', mwp:35, value:3000, heat:'warm', stage:'new', website:'harel-group.co.il', notes:'משקיעי תשתיות', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-12', name:'מנורה מבטחים', tier:'משקיע/תעשייה', contact:'', role:'', phone:'', email:'', mwp:20, value:2500, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-13', name:'הפניקס', tier:'משקיע/תעשייה', contact:'', role:'', phone:'', email:'', mwp:20, value:2500, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-14', name:'כלל ביטוח', tier:'משקיע/תעשייה', contact:'', role:'', phone:'', email:'', mwp:20, value:2500, heat:'warm', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-15', name:'מיטב דש', tier:'משקיע/תעשייה', contact:'', role:'', phone:'', email:'', mwp:15, value:2000, heat:'cold', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-16', name:'אלטשולר שחם', tier:'משקיע/תעשייה', contact:'', role:'', phone:'', email:'', mwp:15, value:2000, heat:'cold', stage:'new', website:'', notes:'', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-17', name:'נווה גד (תנובה)', tier:'משקיע/תעשייה', contact:'', role:'', phone:'', email:'', mwp:8, value:1200, heat:'cold', stage:'new', website:'', notes:'מפעלי חלב — גגות', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-18', name:'פלסן', tier:'משקיע/תעשייה', contact:'', role:'', phone:'', email:'', mwp:4, value:800, heat:'cold', stage:'new', website:'', notes:'מפעל, גגות', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-19', name:'קרן אינפרא', tier:'משקיע/תעשייה', contact:'', role:'', phone:'', email:'', mwp:40, value:3500, heat:'warm', stage:'new', website:'', notes:'קרן תשתיות', lastUpdate:'2026-03-02', activities:[] },
+  { id:'t3-20', name:'אלומיי קפיטל', tier:'משקיע/תעשייה', contact:'', role:'', phone:'', email:'', mwp:40, value:3500, heat:'warm', stage:'new', website:'', notes:'השקעות סולאר ותשתיות', lastUpdate:'2026-03-02', activities:[] },
 ];
 
-let leads = JSON.parse(localStorage.getItem(STORAGE_KEY)) || DEFAULT_LEADS;
+// Migrate old data: add phone/email fields if missing
+function migrateLeads(arr) {
+  return arr.map(l => ({ phone:'', email:'', ...l }));
+}
+
+let leads = migrateLeads(JSON.parse(localStorage.getItem(STORAGE_KEY)) || DEFAULT_LEADS);
 let currentLeadId = null;
 let currentView = 'kanban';
+let outreachChannel = 'whatsapp';
 
-// Templates
+// ============ TEMPLATES ============
 const templates = {
-  'template-realestate': `שלום [שם],
+  'נדל״ן': `שלום [שם],
 
 ראיתי ש[שם החברה] מפעילה מערכות סולאריות בהיקף משמעותי על הנכסים שלכם.
 
@@ -333,14 +813,12 @@ const templates = {
 • SLA tracking אוטומטי — יודעים מתי הקבלן לא עומד בהתחייבויות
 • חיסכון של 50-80% מעלות פתרונות כמו enSight
 
-[שם החברה מתחרה] כבר משתמשים בפלטפורמה שלנו.
-
 5 דקות Zoom להדגמה?
 
 קניאל תורג׳מן
 Solar OS | k@kanielt.com`,
 
-  'template-kibbutz': `שלום [שם],
+  'קיבוץ/מועצה': `שלום [שם],
 
 מועצה אזורית [שם] מפעילה מערכות סולאריות על גגות ושטחים ציבוריים — ואני מניח שהיום אתם סומכים על הקבלן שיגיד לכם שהכל בסדר.
 
@@ -354,7 +832,7 @@ Solar OS | k@kanielt.com`,
 קניאל תורג׳מן
 Solar OS | k@kanielt.com`,
 
-  'template-investor': `שלום [שם],
+  'משקיע/תעשייה': `שלום [שם],
 
 ל[שם הקרן/החברה] יש תיק אנרגיה סולארית — ואני מניח שהדיווח על ביצועים מגיע מהמפעיל/קבלן.
 
@@ -371,13 +849,51 @@ Solar OS נותנת למשקיעים שכבת פיקוח עצמאית:
 Solar OS | k@kanielt.com`
 };
 
-function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(leads)); }
+const templateDisplay = {
+  'template-realestate': templates['נדל״ן'],
+  'template-kibbutz': templates['קיבוץ/מועצה'],
+  'template-investor': templates['משקיע/תעשייה']
+};
 
+// ============ UTILS ============
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(leads)); }
+function today() { return new Date().toISOString().split('T')[0]; }
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function showToast(msg, type='success') {
+  const c = document.getElementById('toastContainer');
+  const colors = { success:'from-emerald-600 to-emerald-500', error:'from-red-600 to-red-500', info:'from-volt-500 to-volt-400' };
+  const icons = { success:'✓', error:'✕', info:'ℹ' };
+  const t = document.createElement('div');
+  t.className = `toast pointer-events-auto bg-gradient-to-r ${colors[type]||colors.info} text-white px-5 py-3 rounded-xl shadow-2xl text-sm font-medium flex items-center gap-2`;
+  t.innerHTML = `<span class="text-lg">${icons[type]||icons.info}</span> ${escHtml(msg)}`;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
+
+function getTemplateForLead(lead) {
+  let t = templates[lead.tier] || templates['נדל״ן'];
+  t = t.replace(/\[שם\]/g, lead.contact || 'רב/גברת');
+  t = t.replace(/\[שם החברה\]/g, lead.name);
+  t = t.replace(/\[שם הקרן\/החברה\]/g, lead.name);
+  t = t.replace(/\[שם החברה מתחרה\]/g, '');
+  return t;
+}
+
+function cleanPhone(p) {
+  if (!p) return '';
+  let d = p.replace(/[^\d+]/g, '');
+  if (d.startsWith('0')) d = '972' + d.slice(1);
+  if (d.startsWith('+')) d = d.slice(1);
+  return d;
+}
+
+// ============ RENDER ============
 function render() {
-  const search = document.getElementById('searchBox').value.toLowerCase();
-  const tierF = document.getElementById('tierFilter').value;
+  const search = (document.getElementById('searchBox').value || document.getElementById('searchBoxMobile')?.value || '').toLowerCase();
+  const tierF = document.getElementById('tierFilter').value || document.getElementById('tierFilterMobile')?.value || 'all';
   const filtered = leads.filter(l => {
-    if (search && !l.name.toLowerCase().includes(search) && !(l.contact||'').toLowerCase().includes(search)) return false;
+    if (search && !l.name.toLowerCase().includes(search) && !(l.contact||'').toLowerCase().includes(search) && !(l.email||'').toLowerCase().includes(search)) return false;
     if (tierF !== 'all' && l.tier !== tierF) return false;
     return true;
   });
@@ -385,129 +901,209 @@ function render() {
   // Stats
   document.getElementById('stat-total').textContent = filtered.length;
   STAGES.forEach(s => {
-    const c = filtered.filter(l => l.stage === s).length;
-    document.getElementById('stat-' + (s === 'new' ? 'new' : s)).textContent = c;
+    const el = document.getElementById('stat-' + s);
+    if (el) el.textContent = filtered.filter(l => l.stage === s).length;
   });
   document.getElementById('leadCount').textContent = filtered.length + ' לידים';
 
   // Kanban
-  STAGES.forEach(stage => {
-    const container = document.getElementById('cards-' + stage);
-    const stageLeads = filtered.filter(l => l.stage === stage);
-    document.getElementById('count-' + stage).textContent = stageLeads.length;
-    container.innerHTML = stageLeads.map(l => `
-      <div class="lead-card bg-slate-800 rounded-lg p-3 border border-slate-700 ${l.tier === 'נדל״ן' ? 'tier-1' : l.tier === 'קיבוץ/מועצה' ? 'tier-2' : 'tier-3'}"
-           draggable="true" ondragstart="drag(event, '${l.id}')" onclick="openLead('${l.id}')">
-        <div class="flex items-center justify-between">
-          <span class="font-medium text-sm">${l.name}</span>
-          <span class="text-xs ${l.heat === 'hot' ? 'text-red-400' : l.heat === 'warm' ? 'text-yellow-400' : 'text-blue-400'}">
-            ${l.heat === 'hot' ? '🔥' : l.heat === 'warm' ? '🟡' : '🔵'}
-          </span>
-        </div>
-        <div class="text-xs text-slate-400 mt-1">${l.tier} ${l.mwp ? '• ' + l.mwp + ' MWp' : ''}</div>
-        ${l.contact ? '<div class="text-xs text-slate-500 mt-1">👤 ' + l.contact + '</div>' : ''}
-        ${l.value ? '<div class="text-xs text-green-400 mt-1">₪' + l.value.toLocaleString() + '/חודש</div>' : ''}
-      </div>
-    `).join('');
-  });
-
+  renderKanban(filtered);
   // Table
-  const tbody = document.getElementById('tableBody');
-  tbody.innerHTML = filtered.map(l => `
-    <tr class="border-b border-slate-700 hover:bg-slate-700/50 cursor-pointer" onclick="openLead('${l.id}')">
-      <td class="px-4 py-3 font-medium">${l.name}</td>
-      <td class="px-4 py-3 text-xs">${l.tier}</td>
-      <td class="px-4 py-3">${l.mwp || '-'}</td>
-      <td class="px-4 py-3 text-xs">${l.contact || '-'}</td>
-      <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full ${l.stage === 'closed' ? 'bg-green-900/30 text-green-400' : 'bg-slate-700 text-slate-300'}">${STAGE_LABELS[l.stage]}</span></td>
-      <td class="px-4 py-3">${l.heat === 'hot' ? '🔥' : l.heat === 'warm' ? '🟡' : '🔵'}</td>
-      <td class="px-4 py-3 text-green-400">${l.value ? '₪' + l.value.toLocaleString() : '-'}</td>
-      <td class="px-4 py-3 text-xs text-slate-400">${l.lastUpdate}</td>
-      <td class="px-4 py-3"><button onclick="event.stopPropagation();openLead('${l.id}')" class="text-blue-400 hover:text-blue-300 text-xs">✏️</button></td>
-    </tr>
-  `).join('');
-
-  // Stats view
+  renderTable(filtered);
+  // Stats
   renderStats(filtered);
-
   // Templates
-  Object.keys(templates).forEach(k => {
-    document.getElementById(k).textContent = templates[k];
+  Object.keys(templateDisplay).forEach(k => {
+    const el = document.getElementById(k);
+    if (el) el.textContent = templateDisplay[k];
   });
 }
 
+function renderKanban(filtered) {
+  const container = document.getElementById('kanbanContainer');
+  container.innerHTML = STAGES.map((stage, idx) => {
+    const stageLeads = filtered.filter(l => l.stage === stage);
+    const color = STAGE_COLORS[stage];
+    return `
+    <div class="kanban-col stagger-in" style="animation-delay:${idx*60}ms">
+      <div class="col-pill rounded-xl px-4 py-3 mb-3 flex items-center justify-between sticky top-0 z-10">
+        <div class="flex items-center gap-2">
+          <span>${STAGE_ICONS[stage]}</span>
+          <h3 class="font-display font-bold text-sm text-${color}-400">${STAGE_LABELS[stage]}</h3>
+        </div>
+        <span class="text-xs bg-${color}-500/15 text-${color}-400 px-2.5 py-0.5 rounded-full font-medium">${stageLeads.length}</span>
+      </div>
+      <div class="space-y-2 drop-zone min-h-[100px] p-1 rounded-xl" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="drop(event, '${stage}')">
+        ${stageLeads.length === 0 ? `
+          <div class="empty-state text-center py-8 opacity-30">
+            <div class="text-3xl mb-2">☀️</div>
+            <div class="text-xs text-slate-500">אין לידים</div>
+          </div>
+        ` : stageLeads.map((l, i) => renderCard(l, i)).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderCard(l, idx) {
+  const heatClass = l.heat === 'hot' ? 'heat-hot' : l.heat === 'warm' ? 'heat-warm' : 'heat-cold';
+  const tierClass = l.tier === 'נדל״ן' ? 'tier-1' : l.tier === 'קיבוץ/מועצה' ? 'tier-2' : 'tier-3';
+  const heatIcon = l.heat === 'hot' ? '🔥' : l.heat === 'warm' ? '🟡' : '🔵';
+  const hasPhone = !!l.phone;
+  const hasEmail = !!l.email;
+  return `
+  <div class="lead-card glass rounded-xl p-3.5 ${tierClass} ${heatClass} stagger-in" style="animation-delay:${idx*40}ms"
+       draggable="true" ondragstart="drag(event, '${l.id}')" ondragend="dragEnd(event)" onclick="openLead('${l.id}')">
+    <div class="tier-bar"></div>
+    <div class="flex items-start justify-between mb-1.5">
+      <span class="font-display font-bold text-sm leading-tight pr-1">${escHtml(l.name)}</span>
+      <span class="text-xs flex-shrink-0">${heatIcon}</span>
+    </div>
+    <div class="text-[11px] text-slate-500 mb-1">${escHtml(l.tier)}${l.mwp ? ' • ' + l.mwp + ' MWp' : ''}</div>
+    ${l.contact ? `<div class="text-[11px] text-slate-400 flex items-center gap-1">👤 ${escHtml(l.contact)}</div>` : ''}
+    ${l.value ? `<div class="text-[11px] text-emerald-400/80 mt-1 font-medium">₪${l.value.toLocaleString()}/חודש</div>` : ''}
+    
+    <!-- Quick Actions (hover) -->
+    <div class="quick-actions flex items-center gap-1.5 mt-2 pt-2 border-t border-white/5">
+      ${hasPhone ? `<a href="https://wa.me/${cleanPhone(l.phone)}?text=${encodeURIComponent(getTemplateForLead(l))}" target="_blank" onclick="event.stopPropagation();logQuickAction('${l.id}','whatsapp')" class="flex items-center gap-1 text-[10px] text-green-400 hover:text-green-300 bg-green-500/10 hover:bg-green-500/20 px-2 py-1 rounded-lg transition-all" title="WhatsApp">
+        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        WA
+      </a>` : `<span class="text-[10px] text-slate-600 bg-white/5 px-2 py-1 rounded-lg cursor-default" onclick="event.stopPropagation();openLead('${l.id}')" title="הוסף טלפון">📱+</span>`}
+      ${hasEmail ? `<a href="mailto:${l.email}?subject=${encodeURIComponent('Solar OS — ניטור סולארי חכם')}&body=${encodeURIComponent(getTemplateForLead(l))}" onclick="event.stopPropagation();logQuickAction('${l.id}','email')" class="flex items-center gap-1 text-[10px] text-solar-400 hover:text-solar-300 bg-solar-500/10 hover:bg-solar-500/20 px-2 py-1 rounded-lg transition-all" title="Email">
+        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        ✉
+      </a>` : `<span class="text-[10px] text-slate-600 bg-white/5 px-2 py-1 rounded-lg cursor-default" onclick="event.stopPropagation();openLead('${l.id}')" title="הוסף אימייל">✉+</span>`}
+      <span class="text-[10px] text-slate-600 mr-auto">${l.lastUpdate?.slice(5) || ''}</span>
+    </div>
+  </div>`;
+}
+
+function renderTable(filtered) {
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = filtered.map((l, i) => {
+    const heatIcon = l.heat === 'hot' ? '🔥' : l.heat === 'warm' ? '🟡' : '🔵';
+    const stageColor = STAGE_COLORS[l.stage];
+    return `
+    <tr class="border-b border-white/5 hover:bg-white/[0.03] cursor-pointer transition-colors stagger-in" style="animation-delay:${i*20}ms" onclick="openLead('${l.id}')">
+      <td class="px-4 py-3"><span class="font-display font-medium">${escHtml(l.name)}</span></td>
+      <td class="px-4 py-3 text-xs text-slate-400">${escHtml(l.tier)}</td>
+      <td class="px-4 py-3 text-slate-300">${l.mwp || '-'}</td>
+      <td class="px-4 py-3 text-xs text-slate-400">${escHtml(l.contact || '-')}</td>
+      <td class="px-4 py-3"><span class="text-xs px-2.5 py-1 rounded-full bg-${stageColor}-500/10 text-${stageColor}-400 font-medium">${STAGE_LABELS[l.stage]}</span></td>
+      <td class="px-4 py-3">${heatIcon}</td>
+      <td class="px-4 py-3 text-emerald-400 font-medium">${l.value ? '₪' + l.value.toLocaleString() : '-'}</td>
+      <td class="px-4 py-3">
+        <div class="flex items-center gap-1">
+          ${l.phone ? `<a href="https://wa.me/${cleanPhone(l.phone)}" target="_blank" onclick="event.stopPropagation()" class="p-1.5 rounded-lg hover:bg-green-500/10 text-green-400 transition-colors" title="WhatsApp"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></a>` : ''}
+          ${l.email ? `<a href="mailto:${l.email}" onclick="event.stopPropagation()" class="p-1.5 rounded-lg hover:bg-solar-500/10 text-solar-400 transition-colors" title="Email"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></a>` : ''}
+          <button onclick="event.stopPropagation();openLead('${l.id}')" class="p-1.5 rounded-lg hover:bg-white/10 text-slate-500 transition-colors"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
 function renderStats(filtered) {
-  // Category chart
   const cats = {};
   filtered.forEach(l => { cats[l.tier] = (cats[l.tier]||0) + 1; });
   const maxCat = Math.max(...Object.values(cats), 1);
+  const catColors = { 'נדל״ן':'from-red-500 to-orange-500', 'קיבוץ/מועצה':'from-yellow-500 to-amber-500', 'משקיע/תעשייה':'from-blue-500 to-indigo-500' };
   document.getElementById('chartCategory').innerHTML = Object.entries(cats).map(([k,v]) =>
-    `<div class="flex items-center gap-3"><span class="w-28 text-sm text-right">${k}</span><div class="flex-1 bg-slate-700 rounded-full h-6"><div class="h-6 rounded-full bg-blue-600 flex items-center justify-end px-2 text-xs font-medium" style="width:${v/maxCat*100}%">${v}</div></div></div>`
+    `<div class="flex items-center gap-3"><span class="w-28 text-sm text-right text-slate-300">${k}</span><div class="flex-1 bg-white/5 rounded-full h-8 overflow-hidden"><div class="h-8 rounded-full bg-gradient-to-l ${catColors[k]||'from-slate-500 to-slate-400'} flex items-center justify-end px-3 text-xs font-bold text-white transition-all duration-700" style="width:${v/maxCat*100}%">${v}</div></div></div>`
   ).join('');
 
-  // Heat chart
   const heats = { hot:0, warm:0, cold:0 };
   filtered.forEach(l => { heats[l.heat]++; });
   const maxH = Math.max(...Object.values(heats), 1);
   const hLabels = { hot:'🔥 חם', warm:'🟡 חמים', cold:'🔵 קר' };
-  const hColors = { hot:'bg-red-500', warm:'bg-yellow-500', cold:'bg-blue-500' };
+  const hColors = { hot:'from-red-500 to-red-400', warm:'from-yellow-500 to-yellow-400', cold:'from-blue-500 to-blue-400' };
   document.getElementById('chartHeat').innerHTML = Object.entries(heats).map(([k,v]) =>
-    `<div class="flex items-center gap-3"><span class="w-20 text-sm text-right">${hLabels[k]}</span><div class="flex-1 bg-slate-700 rounded-full h-6"><div class="h-6 rounded-full ${hColors[k]} flex items-center justify-end px-2 text-xs font-medium" style="width:${v/maxH*100}%">${v}</div></div></div>`
+    `<div class="flex items-center gap-3"><span class="w-20 text-sm text-right text-slate-300">${hLabels[k]}</span><div class="flex-1 bg-white/5 rounded-full h-8 overflow-hidden"><div class="h-8 rounded-full bg-gradient-to-l ${hColors[k]} flex items-center justify-end px-3 text-xs font-bold text-white transition-all duration-700" style="width:${v/maxH*100}%">${v}</div></div></div>`
   ).join('');
 
-  // Revenue
   const totalRev = filtered.reduce((s,l) => s + (l.value||0), 0);
   document.getElementById('revenuePotential').textContent = '₪' + totalRev.toLocaleString() + '/חודש';
 
-  // Funnel
-  const stageColors = { new:'bg-red-500', contacted:'bg-yellow-500', meeting:'bg-blue-500', negotiation:'bg-purple-500', closed:'bg-green-500' };
+  const stageGrad = { new:'from-red-500 to-red-400', contacted:'from-yellow-500 to-yellow-400', meeting:'from-sky-500 to-sky-400', negotiation:'from-purple-500 to-purple-400', closed:'from-emerald-500 to-emerald-400' };
   const maxStage = Math.max(...STAGES.map(s => filtered.filter(l=>l.stage===s).length), 1);
   document.getElementById('funnel').innerHTML = STAGES.map(s => {
     const c = filtered.filter(l=>l.stage===s).length;
-    return `<div class="flex items-center gap-3"><span class="w-24 text-sm text-right">${STAGE_LABELS[s]}</span><div class="flex-1 bg-slate-700 rounded-full h-6"><div class="h-6 rounded-full ${stageColors[s]} flex items-center justify-end px-2 text-xs font-medium" style="width:${c/maxStage*100}%">${c}</div></div></div>`;
+    return `<div class="flex items-center gap-3"><span class="w-24 text-sm text-right text-slate-300">${STAGE_LABELS[s]}</span><div class="flex-1 bg-white/5 rounded-full h-8 overflow-hidden"><div class="h-8 rounded-full bg-gradient-to-l ${stageGrad[s]} flex items-center justify-end px-3 text-xs font-bold text-white transition-all duration-700" style="width:${c/maxStage*100}%">${c}</div></div></div>`;
   }).join('');
 }
 
-// Drag & Drop
-function drag(e, id) { e.dataTransfer.setData('text/plain', id); e.target.classList.add('dragging'); }
-function allowDrop(e) { e.preventDefault(); }
+// ============ DRAG & DROP ============
+let draggedId = null;
+function drag(e, id) {
+  draggedId = id;
+  e.dataTransfer.setData('text/plain', id);
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => e.target.classList.add('dragging'), 0);
+}
+function dragEnd(e) { e.target.classList.remove('dragging'); draggedId = null; }
+function handleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function handleDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
 function drop(e, stage) {
   e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
   const id = e.dataTransfer.getData('text/plain');
   const lead = leads.find(l => l.id === id);
-  if (lead) { lead.stage = stage; lead.lastUpdate = new Date().toISOString().split('T')[0]; save(); render(); }
+  if (lead && lead.stage !== stage) {
+    const oldStage = STAGE_LABELS[lead.stage];
+    lead.stage = stage;
+    lead.lastUpdate = today();
+    if (!lead.activities) lead.activities = [];
+    lead.activities.push({ date: today(), text: `הועבר מ-"${oldStage}" ל-"${STAGE_LABELS[stage]}"` });
+    save();
+    render();
+    showToast(`${lead.name} → ${STAGE_LABELS[stage]}`);
+  }
 }
 
-// Modal
+// ============ MODALS ============
 function openLead(id) {
   currentLeadId = id;
   const l = leads.find(x => x.id === id);
+  if (!l) return;
   document.getElementById('modal-title').textContent = l.name;
+  const heatOpts = [['hot','🔥 חם'],['warm','🟡 חמים'],['cold','🔵 קר']];
   document.getElementById('modal-body').innerHTML = `
     <div class="grid grid-cols-2 gap-3">
-      <div><label class="text-xs text-slate-400">שם חברה</label><input id="ed-name" value="${l.name}" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1"></div>
-      <div><label class="text-xs text-slate-400">קטגוריה</label><select id="ed-tier" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1">
-        <option ${l.tier==='נדל״ן'?'selected':''}>נדל״ן</option><option ${l.tier==='קיבוץ/מועצה'?'selected':''}>קיבוץ/מועצה</option><option ${l.tier==='משקיע/תעשייה'?'selected':''}>משקיע/תעשייה</option>
+      <div><label class="text-[11px] text-slate-500 uppercase tracking-wider">שם חברה</label><input id="ed-name" value="${escHtml(l.name)}" class="w-full bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-sm mt-1 focus:outline-none focus:border-solar-500/40 transition-colors"></div>
+      <div><label class="text-[11px] text-slate-500 uppercase tracking-wider">קטגוריה</label><select id="ed-tier" class="w-full bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-sm mt-1 focus:outline-none focus:border-solar-500/40">
+        <option ${l.tier==='נדל״ן'?'selected':''} value="נדל״ן">🏢 נדל״ן</option>
+        <option ${l.tier==='קיבוץ/מועצה'?'selected':''} value="קיבוץ/מועצה">🌾 קיבוץ/מועצה</option>
+        <option ${l.tier==='משקיע/תעשייה'?'selected':''} value="משקיע/תעשייה">💼 משקיע/תעשייה</option>
       </select></div>
-      <div><label class="text-xs text-slate-400">איש קשר</label><input id="ed-contact" value="${l.contact||''}" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1"></div>
-      <div><label class="text-xs text-slate-400">תפקיד</label><input id="ed-role" value="${l.role||''}" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1"></div>
-      <div><label class="text-xs text-slate-400">הספק (MWp)</label><input id="ed-mwp" type="number" step="0.1" value="${l.mwp||''}" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1"></div>
-      <div><label class="text-xs text-slate-400">ערך חודשי (₪)</label><input id="ed-value" type="number" value="${l.value||''}" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1"></div>
-      <div><label class="text-xs text-slate-400">חום</label><select id="ed-heat" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1">
-        <option value="hot" ${l.heat==='hot'?'selected':''}>🔥 חם</option><option value="warm" ${l.heat==='warm'?'selected':''}>🟡 חמים</option><option value="cold" ${l.heat==='cold'?'selected':''}>🔵 קר</option>
+      <div><label class="text-[11px] text-slate-500 uppercase tracking-wider">איש קשר</label><input id="ed-contact" value="${escHtml(l.contact||'')}" class="w-full bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-sm mt-1 focus:outline-none focus:border-solar-500/40"></div>
+      <div><label class="text-[11px] text-slate-500 uppercase tracking-wider">תפקיד</label><input id="ed-role" value="${escHtml(l.role||'')}" class="w-full bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-sm mt-1 focus:outline-none focus:border-solar-500/40"></div>
+      <div><label class="text-[11px] text-slate-500 uppercase tracking-wider">📱 טלפון</label><input id="ed-phone" value="${escHtml(l.phone||'')}" dir="ltr" placeholder="05X-XXXXXXX" class="w-full bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-sm mt-1 focus:outline-none focus:border-solar-500/40"></div>
+      <div><label class="text-[11px] text-slate-500 uppercase tracking-wider">📧 אימייל</label><input id="ed-email" value="${escHtml(l.email||'')}" dir="ltr" type="email" placeholder="name@company.com" class="w-full bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-sm mt-1 focus:outline-none focus:border-solar-500/40"></div>
+      <div><label class="text-[11px] text-slate-500 uppercase tracking-wider">הספק (MWp)</label><input id="ed-mwp" type="number" step="0.1" value="${l.mwp||''}" class="w-full bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-sm mt-1 focus:outline-none focus:border-solar-500/40"></div>
+      <div><label class="text-[11px] text-slate-500 uppercase tracking-wider">ערך חודשי (₪)</label><input id="ed-value" type="number" value="${l.value||''}" class="w-full bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-sm mt-1 focus:outline-none focus:border-solar-500/40"></div>
+      <div><label class="text-[11px] text-slate-500 uppercase tracking-wider">חום</label><select id="ed-heat" class="w-full bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-sm mt-1 focus:outline-none focus:border-solar-500/40">
+        ${heatOpts.map(([v,t])=>`<option value="${v}" ${l.heat===v?'selected':''}>${t}</option>`).join('')}
       </select></div>
-      <div><label class="text-xs text-slate-400">סטטוס</label><select id="ed-stage" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1">
+      <div><label class="text-[11px] text-slate-500 uppercase tracking-wider">סטטוס</label><select id="ed-stage" class="w-full bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-sm mt-1 focus:outline-none focus:border-solar-500/40">
         ${STAGES.map(s=>`<option value="${s}" ${l.stage===s?'selected':''}>${STAGE_LABELS[s]}</option>`).join('')}
       </select></div>
     </div>
-    <div><label class="text-xs text-slate-400">אתר</label><input id="ed-website" value="${l.website||''}" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1"></div>
-    <div><label class="text-xs text-slate-400">הערות</label><textarea id="ed-notes" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-sm mt-1 h-20">${l.notes||''}</textarea></div>
+    <div><label class="text-[11px] text-slate-500 uppercase tracking-wider">אתר</label><input id="ed-website" value="${escHtml(l.website||'')}" dir="ltr" class="w-full bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-sm mt-1 focus:outline-none focus:border-solar-500/40"></div>
+    <div><label class="text-[11px] text-slate-500 uppercase tracking-wider">הערות</label><textarea id="ed-notes" class="w-full bg-white/5 border border-white/5 rounded-xl px-3 py-2.5 text-sm mt-1 h-20 focus:outline-none focus:border-solar-500/40 resize-none">${escHtml(l.notes||'')}</textarea></div>
+    
+    <!-- Activity History -->
     <div>
-      <label class="text-xs text-slate-400">היסטוריית פעילות</label>
-      <div class="space-y-1 mt-1">${(l.activities||[]).map(a=>`<div class="text-xs bg-slate-900 rounded px-3 py-2"><span class="text-slate-500">${a.date}</span> — ${a.text}</div>`).join('')}</div>
+      <label class="text-[11px] text-slate-500 uppercase tracking-wider">היסטוריית פעילות</label>
+      <div class="space-y-1.5 mt-2 max-h-40 overflow-y-auto">
+        ${(l.activities||[]).length === 0 ? '<div class="text-xs text-slate-600 text-center py-3">אין פעילות עדיין</div>' :
+          (l.activities||[]).slice().reverse().map(a => {
+            const isOutreach = a.text.includes('📨') || a.text.includes('WhatsApp') || a.text.includes('Email');
+            return `<div class="text-xs glass rounded-lg px-3 py-2 flex items-start gap-2 ${isOutreach ? 'border-r-2 border-emerald-500/50' : ''}"><span class="text-slate-600 flex-shrink-0">${a.date}</span><span class="text-slate-300">${escHtml(a.text)}</span></div>`;
+          }).join('')}
+      </div>
       <div class="flex gap-2 mt-2">
-        <input id="ed-activity" placeholder="פעילות חדשה..." class="flex-1 bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-xs">
-        <button onclick="addActivity()" class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-xs">+ הוסף</button>
+        <input id="ed-activity" placeholder="פעילות חדשה..." class="flex-1 bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-solar-500/40">
+        <button onclick="addActivity()" class="glass hover:bg-white/10 px-3 py-2 rounded-xl text-xs transition-all">+ הוסף</button>
       </div>
     </div>
   `;
@@ -523,85 +1119,221 @@ function saveLead() {
   l.tier = document.getElementById('ed-tier').value;
   l.contact = document.getElementById('ed-contact').value;
   l.role = document.getElementById('ed-role').value;
+  l.phone = document.getElementById('ed-phone').value;
+  l.email = document.getElementById('ed-email').value;
   l.mwp = parseFloat(document.getElementById('ed-mwp').value) || 0;
   l.value = parseInt(document.getElementById('ed-value').value) || 0;
   l.heat = document.getElementById('ed-heat').value;
   l.stage = document.getElementById('ed-stage').value;
   l.website = document.getElementById('ed-website').value;
   l.notes = document.getElementById('ed-notes').value;
-  l.lastUpdate = new Date().toISOString().split('T')[0];
+  l.lastUpdate = today();
   save(); render(); closeModal();
+  showToast('הליד נשמר בהצלחה');
 }
 
 function deleteLead() {
-  if (!confirm('למחוק את הליד?')) return;
-  leads = leads.filter(l => l.id !== currentLeadId);
+  const l = leads.find(x => x.id === currentLeadId);
+  if (!l) return;
+  // Custom confirm via modal behavior
+  if (!confirm('למחוק את הליד "' + l.name + '"?')) return;
+  leads = leads.filter(x => x.id !== currentLeadId);
   save(); render(); closeModal();
+  showToast(l.name + ' נמחק', 'error');
 }
 
 function addActivity() {
   const l = leads.find(x => x.id === currentLeadId);
-  const text = document.getElementById('ed-activity').value.trim();
+  const input = document.getElementById('ed-activity');
+  const text = input.value.trim();
   if (!l || !text) return;
   if (!l.activities) l.activities = [];
-  l.activities.push({ date: new Date().toISOString().split('T')[0], text });
-  l.lastUpdate = new Date().toISOString().split('T')[0];
-  save(); openLead(currentLeadId); // refresh modal
+  l.activities.push({ date: today(), text });
+  l.lastUpdate = today();
+  save();
+  openLead(currentLeadId); // refresh
+  showToast('פעילות נוספה');
 }
 
-// Add Lead
+function logQuickAction(id, channel) {
+  const l = leads.find(x => x.id === id);
+  if (!l) return;
+  if (!l.activities) l.activities = [];
+  const chLabel = channel === 'whatsapp' ? 'WhatsApp' : 'Email';
+  l.activities.push({ date: today(), text: `📨 פנייה נשלחה דרך ${chLabel} (quick action)` });
+  l.lastUpdate = today();
+  save();
+}
+
+// ============ ADD LEAD ============
 function showAddModal() { document.getElementById('addModal').classList.remove('hidden'); }
 function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
 function addLead() {
   const name = document.getElementById('add-name').value.trim();
-  if (!name) return alert('שם חברה חובה');
+  if (!name) { showToast('שם חברה חובה', 'error'); return; }
   leads.push({
     id: Date.now().toString(),
     name,
     tier: document.getElementById('add-tier').value,
     contact: document.getElementById('add-contact').value,
     role: document.getElementById('add-role').value,
+    phone: document.getElementById('add-phone').value,
+    email: document.getElementById('add-email').value,
     mwp: parseFloat(document.getElementById('add-mwp').value) || 0,
     value: parseInt(document.getElementById('add-value').value) || 0,
     heat: document.getElementById('add-heat').value,
     stage: 'new',
     website: '',
     notes: document.getElementById('add-notes').value,
-    lastUpdate: new Date().toISOString().split('T')[0],
+    lastUpdate: today(),
     activities: []
   });
   save(); render(); closeAddModal();
-  ['add-name','add-contact','add-role','add-mwp','add-value','add-notes'].forEach(id => document.getElementById(id).value = '');
+  ['add-name','add-contact','add-role','add-phone','add-email','add-mwp','add-value','add-notes'].forEach(id => document.getElementById(id).value = '');
+  showToast('ליד חדש נוסף! 🎯');
 }
 
-// View switching
+// ============ OUTREACH MODAL ============
+function openOutreachModal() {
+  const l = leads.find(x => x.id === currentLeadId);
+  if (!l) return;
+  document.getElementById('outreach-to').textContent = l.name + (l.contact ? ' — ' + l.contact : '');
+  document.getElementById('outreach-body').value = getTemplateForLead(l);
+  outreachChannel = l.phone ? 'whatsapp' : (l.email ? 'email' : 'whatsapp');
+  updateOutreachChannel();
+  document.getElementById('outreachModal').classList.remove('hidden');
+}
+function closeOutreachModal() { document.getElementById('outreachModal').classList.add('hidden'); }
+
+function setOutreachChannel(ch) {
+  outreachChannel = ch;
+  updateOutreachChannel();
+}
+function updateOutreachChannel() {
+  const waBtn = document.getElementById('ch-wa');
+  const emBtn = document.getElementById('ch-email');
+  const subjRow = document.getElementById('outreach-subject-row');
+  waBtn.className = 'channel-btn flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium' + (outreachChannel === 'whatsapp' ? ' active-wa' : '');
+  emBtn.className = 'channel-btn flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium' + (outreachChannel === 'email' ? ' active-email' : '');
+  subjRow.classList.toggle('hidden', outreachChannel !== 'email');
+}
+
+function sendOutreach() {
+  const l = leads.find(x => x.id === currentLeadId);
+  if (!l) return;
+  const body = document.getElementById('outreach-body').value;
+  
+  if (outreachChannel === 'whatsapp') {
+    if (!l.phone) { showToast('חסר מספר טלפון — הוסף קודם בכרטיס הליד', 'error'); return; }
+    const url = `https://wa.me/${cleanPhone(l.phone)}?text=${encodeURIComponent(body)}`;
+    window.open(url, '_blank');
+  } else {
+    if (!l.email) { showToast('חסר אימייל — הוסף קודם בכרטיס הליד', 'error'); return; }
+    const subject = document.getElementById('outreach-subject').value;
+    const url = `mailto:${l.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = url;
+  }
+  
+  // Log activity
+  if (!l.activities) l.activities = [];
+  const chLabel = outreachChannel === 'whatsapp' ? 'WhatsApp' : 'Email';
+  l.activities.push({ date: today(), text: `📨 פנייה נשלחה דרך ${chLabel}` });
+  l.lastUpdate = today();
+  save();
+  
+  closeOutreachModal();
+  closeModal();
+  render();
+  showToast(`הודעה נשלחה דרך ${chLabel}! 🚀`);
+}
+
+// ============ VIEW SWITCHING ============
 function switchView(view) {
   currentView = view;
   ['kanban','table','stats','outreach'].forEach(v => {
-    document.getElementById('view-' + v).classList.toggle('hidden', v !== view);
-    document.getElementById('tab-' + v).classList.toggle('tab-active', v === view);
-    document.getElementById('tab-' + v).classList.toggle('text-slate-400', v !== view);
+    const el = document.getElementById('view-' + v);
+    el.classList.toggle('hidden', v !== view);
+    if (v === view) { el.classList.remove('view-panel'); void el.offsetWidth; el.classList.add('view-panel'); }
+    // Desktop tabs
+    const tab = document.getElementById('tab-' + v);
+    if (tab) tab.classList.toggle('active', v === view);
+  });
+  // Mobile bottom nav
+  document.querySelectorAll('.bottom-nav-item').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === view);
   });
 }
 
-// Export CSV
+// ============ CSV EXPORT ============
 function exportCSV() {
-  const header = 'שם חברה,קטגוריה,MWp,איש קשר,תפקיד,סטטוס,חום,ערך חודשי,אתר,הערות\n';
-  const rows = leads.map(l => `"${l.name}","${l.tier}",${l.mwp||''},"${l.contact||''}","${l.role||''}","${STAGE_LABELS[l.stage]}","${l.heat}",${l.value||''},"${l.website||''}","${(l.notes||'').replace(/"/g,'""')}"`).join('\n');
+  const header = 'שם חברה,קטגוריה,MWp,איש קשר,תפקיד,טלפון,אימייל,סטטוס,חום,ערך חודשי,אתר,הערות\n';
+  const rows = leads.map(l => `"${l.name}","${l.tier}",${l.mwp||''},"${l.contact||''}","${l.role||''}","${l.phone||''}","${l.email||''}","${STAGE_LABELS[l.stage]}","${l.heat}",${l.value||''},"${l.website||''}","${(l.notes||'').replace(/"/g,'""')}"`).join('\n');
   const blob = new Blob(['\ufeff' + header + rows], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mivne-pipeline.csv'; a.click();
+  showToast('CSV יוצא בהצלחה');
 }
 
 function copyTemplate(id) {
-  navigator.clipboard.writeText(document.getElementById(id).textContent);
-  alert('הועתק!');
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('הועתק!'));
 }
 
-// Search & Filter listeners
+// ============ MOBILE HELPERS ============
+function toggleMobileSearch() {
+  document.getElementById('mobileSearch').classList.toggle('hidden');
+}
+
+// Sync mobile/desktop search
+document.getElementById('searchBoxMobile')?.addEventListener('input', (e) => {
+  document.getElementById('searchBox').value = e.target.value;
+  render();
+});
+document.getElementById('tierFilterMobile')?.addEventListener('change', (e) => {
+  document.getElementById('tierFilter').value = e.target.value;
+  render();
+});
+
+// ============ EVENT LISTENERS ============
 document.getElementById('searchBox').addEventListener('input', render);
 document.getElementById('tierFilter').addEventListener('change', render);
 
-// Init
+// Close modals on backdrop click
+['leadModal','addModal','outreachModal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) {
+      e.currentTarget.classList.add('hidden');
+      if (id === 'leadModal') currentLeadId = null;
+    }
+  });
+});
+
+// Close modals on Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.getElementById('outreachModal').classList.add('hidden');
+    document.getElementById('leadModal').classList.add('hidden');
+    document.getElementById('addModal').classList.add('hidden');
+    currentLeadId = null;
+  }
+});
+
+// Pull to refresh (visual)
+let ptrStart = 0;
+document.addEventListener('touchstart', (e) => { ptrStart = e.touches[0].clientY; });
+document.addEventListener('touchmove', (e) => {
+  if (window.scrollY === 0 && e.touches[0].clientY - ptrStart > 60) {
+    document.getElementById('ptrIndicator').classList.add('pulling');
+  }
+});
+document.addEventListener('touchend', () => {
+  const ptr = document.getElementById('ptrIndicator');
+  if (ptr.classList.contains('pulling')) {
+    render();
+    setTimeout(() => ptr.classList.remove('pulling'), 600);
+  }
+});
+
+// ============ INIT ============
 render();
 </script>
 </body>
