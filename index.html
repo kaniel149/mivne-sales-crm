@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solar OS Mivne — Sales CRM</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap');
+* { font-family: 'Heebo', sans-serif; }
+body { background: #0f172a; color: #e2e8f0; }
+.kanban-col { min-height: 400px; }
+.lead-card { transition: all 0.2s; cursor: grab; }
+.lead-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
+.lead-card.dragging { opacity: 0.5; }
+.tier-1 { border-right: 3px solid #ef4444; }
+.tier-2 { border-right: 3px solid #f59e0b; }
+.tier-3 { border-right: 3px solid #3b82f6; }
+.hot { background: #dc26261a; }
+.warm { background: #f59e0b1a; }
+.cold { background: #3b82f61a; }
+.modal-bg { background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
+.tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #1e293b; }
+::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- Top Bar -->
+<header class="bg-slate-800/80 border-b border-slate-700 px-6 py-3 flex items-center justify-between sticky top-0 z-40">
+  <div class="flex items-center gap-4">
+    <h1 class="text-xl font-bold">☀️ Solar OS Mivne — Sales Pipeline</h1>
+    <span id="leadCount" class="text-sm bg-slate-700 px-3 py-1 rounded-full"></span>
+  </div>
+  <div class="flex items-center gap-3">
+    <input id="searchBox" type="text" placeholder="חיפוש ליד..." class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-sm w-48 focus:outline-none focus:border-blue-500">
+    <select id="tierFilter" class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none">
+      <option value="all">כל הקטגוריות</option>
+      <option value="נדל״ן">נדל״ן</option>
+      <option value="קיבוץ/מועצה">קיבוץ/מועצה</option>
+      <option value="משקיע/תעשייה">משקיע/תעשייה</option>
+    </select>
+    <button onclick="showAddModal()" class="bg-blue-600 hover:bg-blue-700 px-4 py-1.5 rounded-lg text-sm font-medium">+ ליד חדש</button>
+    <button onclick="exportCSV()" class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg text-sm">📥 CSV</button>
+  </div>
+</header>
+
+<!-- Tabs -->
+<div class="flex border-b border-slate-700 px-6 bg-slate-800/50">
+  <button onclick="switchView('kanban')" id="tab-kanban" class="px-4 py-3 text-sm font-medium tab-active">📋 Kanban</button>
+  <button onclick="switchView('table')" id="tab-table" class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200">📊 טבלה</button>
+  <button onclick="switchView('stats')" id="tab-stats" class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200">📈 סטטיסטיקות</button>
+  <button onclick="switchView('outreach')" id="tab-outreach" class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200">📧 תבניות Outreach</button>
+</div>
+
+<!-- Stats Summary -->
+<div id="statsBar" class="grid grid-cols-6 gap-3 px-6 py-4">
+  <div class="bg-slate-800 rounded-lg p-3 text-center">
+    <div class="text-2xl font-bold" id="stat-total">0</div>
+    <div class="text-xs text-slate-400">סה״כ לידים</div>
+  </div>
+  <div class="bg-slate-800 rounded-lg p-3 text-center">
+    <div class="text-2xl font-bold text-red-400" id="stat-new">0</div>
+    <div class="text-xs text-slate-400">חדש</div>
+  </div>
+  <div class="bg-slate-800 rounded-lg p-3 text-center">
+    <div class="text-2xl font-bold text-yellow-400" id="stat-contacted">0</div>
+    <div class="text-xs text-slate-400">נוצר קשר</div>
+  </div>
+  <div class="bg-slate-800 rounded-lg p-3 text-center">
+    <div class="text-2xl font-bold text-blue-400" id="stat-meeting">0</div>
+    <div class="text-xs text-slate-400">פגישה</div>
+  </div>
+  <div class="bg-slate-800 rounded-lg p-3 text-center">
+    <div class="text-2xl font-bold text-purple-400" id="stat-negotiation">0</div>
+    <div class="text-xs text-slate-400">משא״מ</div>
+  </div>
+  <div class="bg-slate-800 rounded-lg p-3 text-center">
+    <div class="text-2xl font-bold text-green-400" id="stat-closed">0</div>
+    <div class="text-xs text-slate-400">נסגר ✓</div>
+  </div>
+</div>
+
+<!-- Main Content -->
+<main class="px-6 pb-8">
+  <!-- Kanban View -->
+  <div id="view-kanban" class="grid grid-cols-5 gap-4">
+    <div class="kanban-col" id="col-new">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-red-400">🔴 חדש</h3>
+        <span class="text-xs bg-red-900/30 text-red-400 px-2 py-0.5 rounded-full" id="count-new">0</span>
+      </div>
+      <div class="space-y-2" id="cards-new" ondragover="allowDrop(event)" ondrop="drop(event, 'new')"></div>
+    </div>
+    <div class="kanban-col" id="col-contacted">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-yellow-400">🟡 נוצר קשר</h3>
+        <span class="text-xs bg-yellow-900/30 text-yellow-400 px-2 py-0.5 rounded-full" id="count-contacted">0</span>
+      </div>
+      <div class="space-y-2" id="cards-contacted" ondragover="allowDrop(event)" ondrop="drop(event, 'contacted')"></div>
+    </div>
+    <div class="kanban-col" id="col-meeting">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-blue-400">🔵 פגישה</h3>
+        <span class="text-xs bg-blue-900/30 text-blue-400 px-2 py-0.5 rounded-full" id="count-meeting">0</span>
+      </div>
+      <div class="space-y-2" id="cards-meeting" ondragover="allowDrop(event)" ondrop="drop(event, 'meeting')"></div>
+    </div>
+    <div class="kanban-col" id="col-negotiation">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-purple-400">🟣 משא״מ</h3>
+        <span class="text-xs bg-purple-900/30 text-purple-400 px-2 py-0.5 rounded-full" id="count-negotiation">0</span>
+      </div>
+      <div class="space-y-2" id="cards-negotiation" ondragover="allowDrop(event)" ondrop="drop(event, 'negotiation')"></div>
+    </div>
+    <div class="kanban-col" id="col-closed">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-green-400">🟢 נסגר</h3>
+        <span class="text-xs bg-green-900/30 text-green-400 px-2 py-0.5 rounded-full" id="count-closed">0</span>
+      </div>
+      <div class="space-y-2" id="cards-closed" ondragover="allowDrop(event)" ondrop="drop(event, 'closed')"></div>
+    </div>
+  </div>
+
+  <!-- Table View -->
+  <div id="view-table" class="hidden">
+    <div class="bg-slate-800 rounded-lg overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-700">
+          <tr>
+            <th class="text-right px-4 py-3 font-medium">חברה</th>
+            <th class="text-right px-4 py-3 font-medium">קטגוריה</th>
+            <th class="text-right px-4 py-3 font-medium">MWp</th>
+            <th class="text-right px-4 py-3 font-medium">איש קשר</th>
+            <th class="text-right px-4 py-3 font-medium">סטטוס</th>
+            <th class="text-right px-4 py-3 font-medium">חום</th>
+            <th class="text-right px-4 py-3 font-medium">ערך חודשי</th>
+            <th class="text-right px-4 py-3 font-medium">עדכון אחרון</th>
+            <th class="text-right px-4 py-3 font-medium">פעולות</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Stats View -->
+  <div id="view-stats" class="hidden grid grid-cols-2 gap-6">
+    <div class="bg-slate-800 rounded-lg p-6">
+      <h3 class="font-semibold mb-4">לפי קטגוריה</h3>
+      <div id="chartCategory" class="space-y-3"></div>
+    </div>
+    <div class="bg-slate-800 rounded-lg p-6">
+      <h3 class="font-semibold mb-4">לפי חום</h3>
+      <div id="chartHeat" class="space-y-3"></div>
+    </div>
+    <div class="bg-slate-800 rounded-lg p-6">
+      <h3 class="font-semibold mb-4">פוטנציאל הכנסה חודשית</h3>
+      <div id="revenuePotential" class="text-3xl font-bold text-green-400"></div>
+      <div class="text-slate-400 text-sm mt-2">מבוסס על ערך ממוצע לליד</div>
+    </div>
+    <div class="bg-slate-800 rounded-lg p-6">
+      <h3 class="font-semibold mb-4">Conversion Funnel</h3>
+      <div id="funnel" class="space-y-2"></div>
+    </div>
+  </div>
+
+  <!-- Outreach Templates View -->
+  <div id="view-outreach" class="hidden space-y-4">
+    <div class="bg-slate-800 rounded-lg p-6">
+      <h3 class="font-semibold mb-2">📧 תבנית — נדל״ן</h3>
+      <pre class="bg-slate-900 p-4 rounded text-sm whitespace-pre-wrap leading-relaxed" id="template-realestate"></pre>
+      <button onclick="copyTemplate('template-realestate')" class="mt-2 text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded">📋 העתק</button>
+    </div>
+    <div class="bg-slate-800 rounded-lg p-6">
+      <h3 class="font-semibold mb-2">📧 תבנית — קיבוץ / מועצה אזורית</h3>
+      <pre class="bg-slate-900 p-4 rounded text-sm whitespace-pre-wrap leading-relaxed" id="template-kibbutz"></pre>
+      <button onclick="copyTemplate('template-kibbutz')" class="mt-2 text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded">📋 העתק</button>
+    </div>
+    <div class="bg-slate-800 rounded-lg p-6">
+      <h3 class="font-semibold mb-2">📧 תבנית — משקיע / תעשייה</h3>
+      <pre class="bg-slate-900 p-4 rounded text-sm whitespace-pre-wrap leading-relaxed" id="template-investor"></pre>
+      <button onclick="copyTemplate('template-investor')" class="mt-2 text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded">📋 העתק</button>
+    </div>
+  </div>
+</main>
+
+<!-- Lead Detail Modal -->
+<div id="leadModal" class="fixed inset-0 modal-bg z-50 hidden flex items-center justify-center">
+  <div class="bg-slate-800 rounded-xl w-[600px] max-h-[80vh] overflow-y-auto border border-slate-700 shadow-2xl">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+      <h2 id="modal-title" class="text-lg font-bold"></h2>
+      <button onclick="closeModal()" class="text-slate-400 hover:text-white text-xl">✕</button>
+    </div>
+    <div class="p-6 space-y-4" id="modal-body"></div>
+    <div class="flex gap-2 px-6 pb-4">
+      <button onclick="saveLead()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium">💾 שמור</button>
+      <button onclick="deleteLead()" class="bg-red-600/20 hover:bg-red-600/40 text-red-400 px-4 py-2 rounded-lg text-sm">🗑 מחק</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Lead Modal -->
+<div id="addModal" class="fixed inset-0 modal-bg z-50 hidden flex items-center justify-center">
+  <div class="bg-slate-800 rounded-xl w-[500px] border border-slate-700 shadow-2xl">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+      <h2 class="text-lg font-bold">ליד חדש</h2>
+      <button onclick="closeAddModal()" class="text-slate-400 hover:text-white text-xl">✕</button>
+    </div>
+    <div class="p-6 space-y-3">
+      <input id="add-name" type="text" placeholder="שם חברה *" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+      <select id="add-tier" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm">
+        <option value="נדל״ן">נדל״ן</option>
+        <option value="קיבוץ/מועצה">קיבוץ/מועצה</option>
+        <option value="משקיע/תעשייה">משקיע/תעשייה</option>
+      </select>
+      <input id="add-contact" type="text" placeholder="איש קשר" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+      <input id="add-role" type="text" placeholder="תפקיד" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+      <input id="add-mwp" type="number" step="0.1" placeholder="הספק (MWp)" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+      <input id="add-value" type="number" placeholder="ערך חודשי (₪)" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+      <select id="add-heat" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm">
+        <option value="hot">🔥 חם</option>
+        <option value="warm">🟡 חמים</option>
+        <option value="cold">🔵 קר</option>
+      </select>
+      <textarea id="add-notes" placeholder="הערות" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm h-20 focus:outline-none focus:border-blue-500"></textarea>
+    </div>
+    <div class="px-6 pb-4">
+      <button onclick="addLead()" class="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium">הוסף ליד</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'mivne-sales-pipeline';
+const STAGES = ['new','contacted','meeting','negotiation','closed'];
+const STAGE_LABELS = { new:'חדש', contacted:'נוצר קשר', meeting:'פגישה', negotiation:'משא״מ', closed:'נסגר' };
+
+// Default leads (will be replaced when pipeline.md loads)
+const DEFAULT_LEADS = [
+  { id: '1', name: 'מבנה נדל״ן', tier: 'נדל״ן', contact: 'רותם הראל', role: 'מנהל אנרגיה', mwp: 25, value: 3000, heat: 'hot', stage: 'meeting', website: '', notes: 'Design partner. משלם 15K/חודש ל-enSight. רוצה לעזוב.', lastUpdate: '2026-02-24', activities: [{date:'2026-02-24',text:'פגישה ראשונה — הציג דרישות'}] },
+  { id: '2', name: 'עזריאלי', tier: 'נדל״ן', contact: '', role: '', mwp: 50, value: 5000, heat: 'warm', stage: 'new', website: 'azrieli.com', notes: 'מעל 50 MWp על קניונים ומשרדים', lastUpdate: '2026-03-02', activities: [] },
+  { id: '3', name: 'אמות השקעות', tier: 'נדל״ן', contact: '', role: '', mwp: 30, value: 3500, heat: 'warm', stage: 'new', website: 'amot.co.il', notes: 'נדל״ן מסחרי — פארקים תעשייתיים', lastUpdate: '2026-03-02', activities: [] },
+  { id: '4', name: 'מליסרון', tier: 'נדל״ן', contact: '', role: '', mwp: 40, value: 4000, heat: 'warm', stage: 'new', website: 'melisron.co.il', notes: 'קניונים — סולאר על גגות', lastUpdate: '2026-03-02', activities: [] },
+  { id: '5', name: 'ביג מרכזי קניות', tier: 'נדל״ן', contact: '', role: '', mwp: 35, value: 3500, heat: 'warm', stage: 'new', website: 'big.co.il', notes: 'מרכזי power center ברחבי הארץ', lastUpdate: '2026-03-02', activities: [] },
+  { id: '6', name: 'גזית גלוב', tier: 'נדל״ן', contact: '', role: '', mwp: 20, value: 2500, heat: 'cold', stage: 'new', website: 'gazitglobe.com', notes: 'נדל״ן בינלאומי — יש נכסים בישראל', lastUpdate: '2026-03-02', activities: [] },
+  { id: '7', name: 'שופרסל נדל״ן', tier: 'נדל״ן', contact: '', role: '', mwp: 25, value: 3000, heat: 'warm', stage: 'new', website: 'shufersal.co.il', notes: 'סניפים + מרכזים לוגיסטיים', lastUpdate: '2026-03-02', activities: [] },
+  { id: '8', name: 'רמי לוי נדל״ן', tier: 'נדל״ן', contact: '', role: '', mwp: 15, value: 2000, heat: 'cold', stage: 'new', website: 'rfrg.co.il', notes: 'סניפים + חניונים', lastUpdate: '2026-03-02', activities: [] },
+  { id: '9', name: 'אלוני חץ', tier: 'נדל״ן', contact: '', role: '', mwp: 20, value: 2500, heat: 'cold', stage: 'new', website: 'alony-hetz.co.il', notes: 'נדל״ן מניב', lastUpdate: '2026-03-02', activities: [] },
+  { id: '10', name: 'קיבוץ ניר עוז', tier: 'קיבוץ/מועצה', contact: '', role: '', mwp: 5, value: 1500, heat: 'cold', stage: 'new', website: '', notes: 'שדה סולארי בנגב', lastUpdate: '2026-03-02', activities: [] },
+  { id: '11', name: 'מועצה אזורית אשכול', tier: 'קיבוץ/מועצה', contact: '', role: '', mwp: 15, value: 2000, heat: 'warm', stage: 'new', website: 'eshkol.org.il', notes: 'פרויקטים סולאריים רבים בנגב', lastUpdate: '2026-03-02', activities: [] },
+  { id: '12', name: 'מועצה אזורית מגידו', tier: 'קיבוץ/מועצה', contact: '', role: '', mwp: 10, value: 1500, heat: 'cold', stage: 'new', website: '', notes: 'אזור עמק יזרעאל', lastUpdate: '2026-03-02', activities: [] },
+  { id: '13', name: 'קרן אנרגיה — הראל', tier: 'משקיע/תעשייה', contact: '', role: '', mwp: 100, value: 8000, heat: 'warm', stage: 'new', website: 'harel-group.co.il', notes: 'קרן תשתיות אנרגיה', lastUpdate: '2026-03-02', activities: [] },
+  { id: '14', name: 'דוראל אורבן', tier: 'משקיע/תעשייה', contact: 'בוטי', role: '', mwp: 30, value: 3000, heat: 'hot', stage: 'contacted', website: 'doralenergy.co.il', notes: 'Design partner ל-Storage OS. בקשר.', lastUpdate: '2026-02-24', activities: [{date:'2026-02-24',text:'פגישת היכרות — מעוניין'}] },
+];
+
+let leads = JSON.parse(localStorage.getItem(STORAGE_KEY)) || DEFAULT_LEADS;
+let currentLeadId = null;
+let currentView = 'kanban';
+
+// Templates
+const templates = {
+  'template-realestate': `שלום [שם],
+
+ראיתי ש[שם החברה] מפעילה מערכות סולאריות בהיקף משמעותי על הנכסים שלכם.
+
+אני קניאל, מייסד Solar OS — פלטפורמת פיקוח שנותנת לבעלי נכסים שקיפות מלאה על הביצועים של המערכות הסולאריות שלהם, בלי להיות תלויים בקבלן.
+
+בקצרה:
+• דשבורד אחד לכל האתרים — מעל כל מערכת ניטור (SolarEdge, Huawei, enSight)
+• SLA tracking אוטומטי — יודעים מתי הקבלן לא עומד בהתחייבויות
+• חיסכון של 50-80% מעלות פתרונות כמו enSight
+
+[שם החברה מתחרה] כבר משתמשים בפלטפורמה שלנו.
+
+5 דקות Zoom להדגמה?
+
+קניאל תורג׳מן
+Solar OS | k@kanielt.com`,
+
+  'template-kibbutz': `שלום [שם],
+
+מועצה אזורית [שם] מפעילה מערכות סולאריות על גגות ושטחים ציבוריים — ואני מניח שהיום אתם סומכים על הקבלן שיגיד לכם שהכל בסדר.
+
+אנחנו ב-Solar OS בנינו "עין על הקבלן" — פלטפורמה שנותנת למועצה שקיפות מלאה:
+• כמה באמת יוצר כל אתר vs. מה שהובטח
+• SLA tracking — האם הקבלן מגיב לתקלות בזמן
+• דשבורד אחד פשוט — בלי להיות מהנדס חשמל
+
+כבר עובדים עם חברות נדל״ן גדולות. רוצה לראות?
+
+קניאל תורג׳מן
+Solar OS | k@kanielt.com`,
+
+  'template-investor': `שלום [שם],
+
+ל[שם הקרן/החברה] יש תיק אנרגיה סולארית — ואני מניח שהדיווח על ביצועים מגיע מהמפעיל/קבלן.
+
+Solar OS נותנת למשקיעים שכבת פיקוח עצמאית:
+• BI dashboard על כל הפורטפוליו — כמה באמת מייצר vs. תחזית
+• התראות חריגות בזמן אמת
+• דוחות אוטומטיים לדירקטוריון
+
+חוסכים 50-80% מעלות פתרונות כמו enSight, עם התמקדות בפיקוח (לא ניטור טכני).
+
+זמינים ל-5 דקות?
+
+קניאל תורג׳מן
+Solar OS | k@kanielt.com`
+};
+
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(leads)); }
+
+function render() {
+  const search = document.getElementById('searchBox').value.toLowerCase();
+  const tierF = document.getElementById('tierFilter').value;
+  const filtered = leads.filter(l => {
+    if (search && !l.name.toLowerCase().includes(search) && !(l.contact||'').toLowerCase().includes(search)) return false;
+    if (tierF !== 'all' && l.tier !== tierF) return false;
+    return true;
+  });
+
+  // Stats
+  document.getElementById('stat-total').textContent = filtered.length;
+  STAGES.forEach(s => {
+    const c = filtered.filter(l => l.stage === s).length;
+    document.getElementById('stat-' + (s === 'new' ? 'new' : s)).textContent = c;
+  });
+  document.getElementById('leadCount').textContent = filtered.length + ' לידים';
+
+  // Kanban
+  STAGES.forEach(stage => {
+    const container = document.getElementById('cards-' + stage);
+    const stageLeads = filtered.filter(l => l.stage === stage);
+    document.getElementById('count-' + stage).textContent = stageLeads.length;
+    container.innerHTML = stageLeads.map(l => `
+      <div class="lead-card bg-slate-800 rounded-lg p-3 border border-slate-700 ${l.tier === 'נדל״ן' ? 'tier-1' : l.tier === 'קיבוץ/מועצה' ? 'tier-2' : 'tier-3'}"
+           draggable="true" ondragstart="drag(event, '${l.id}')" onclick="openLead('${l.id}')">
+        <div class="flex items-center justify-between">
+          <span class="font-medium text-sm">${l.name}</span>
+          <span class="text-xs ${l.heat === 'hot' ? 'text-red-400' : l.heat === 'warm' ? 'text-yellow-400' : 'text-blue-400'}">
+            ${l.heat === 'hot' ? '🔥' : l.heat === 'warm' ? '🟡' : '🔵'}
+          </span>
+        </div>
+        <div class="text-xs text-slate-400 mt-1">${l.tier} ${l.mwp ? '• ' + l.mwp + ' MWp' : ''}</div>
+        ${l.contact ? '<div class="text-xs text-slate-500 mt-1">👤 ' + l.contact + '</div>' : ''}
+        ${l.value ? '<div class="text-xs text-green-400 mt-1">₪' + l.value.toLocaleString() + '/חודש</div>' : ''}
+      </div>
+    `).join('');
+  });
+
+  // Table
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = filtered.map(l => `
+    <tr class="border-b border-slate-700 hover:bg-slate-700/50 cursor-pointer" onclick="openLead('${l.id}')">
+      <td class="px-4 py-3 font-medium">${l.name}</td>
+      <td class="px-4 py-3 text-xs">${l.tier}</td>
+      <td class="px-4 py-3">${l.mwp || '-'}</td>
+      <td class="px-4 py-3 text-xs">${l.contact || '-'}</td>
+      <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full ${l.stage === 'closed' ? 'bg-green-900/30 text-green-400' : 'bg-slate-700 text-slate-300'}">${STAGE_LABELS[l.stage]}</span></td>
+      <td class="px-4 py-3">${l.heat === 'hot' ? '🔥' : l.heat === 'warm' ? '🟡' : '🔵'}</td>
+      <td class="px-4 py-3 text-green-400">${l.value ? '₪' + l.value.toLocaleString() : '-'}</td>
+      <td class="px-4 py-3 text-xs text-slate-400">${l.lastUpdate}</td>
+      <td class="px-4 py-3"><button onclick="event.stopPropagation();openLead('${l.id}')" class="text-blue-400 hover:text-blue-300 text-xs">✏️</button></td>
+    </tr>
+  `).join('');
+
+  // Stats view
+  renderStats(filtered);
+
+  // Templates
+  Object.keys(templates).forEach(k => {
+    document.getElementById(k).textContent = templates[k];
+  });
+}
+
+function renderStats(filtered) {
+  // Category chart
+  const cats = {};
+  filtered.forEach(l => { cats[l.tier] = (cats[l.tier]||0) + 1; });
+  const maxCat = Math.max(...Object.values(cats), 1);
+  document.getElementById('chartCategory').innerHTML = Object.entries(cats).map(([k,v]) =>
+    `<div class="flex items-center gap-3"><span class="w-28 text-sm text-right">${k}</span><div class="flex-1 bg-slate-700 rounded-full h-6"><div class="h-6 rounded-full bg-blue-600 flex items-center justify-end px-2 text-xs font-medium" style="width:${v/maxCat*100}%">${v}</div></div></div>`
+  ).join('');
+
+  // Heat chart
+  const heats = { hot:0, warm:0, cold:0 };
+  filtered.forEach(l => { heats[l.heat]++; });
+  const maxH = Math.max(...Object.values(heats), 1);
+  const hLabels = { hot:'🔥 חם', warm:'🟡 חמים', cold:'🔵 קר' };
+  const hColors = { hot:'bg-red-500', warm:'bg-yellow-500', cold:'bg-blue-500' };
+  document.getElementById('chartHeat').innerHTML = Object.entries(heats).map(([k,v]) =>
+    `<div class="flex items-center gap-3"><span class="w-20 text-sm text-right">${hLabels[k]}</span><div class="flex-1 bg-slate-700 rounded-full h-6"><div class="h-6 rounded-full ${hColors[k]} flex items-center justify-end px-2 text-xs font-medium" style="width:${v/maxH*100}%">${v}</div></div></div>`
+  ).join('');
+
+  // Revenue
+  const totalRev = filtered.reduce((s,l) => s + (l.value||0), 0);
+  document.getElementById('revenuePotential').textContent = '₪' + totalRev.toLocaleString() + '/חודש';
+
+  // Funnel
+  const stageColors = { new:'bg-red-500', contacted:'bg-yellow-500', meeting:'bg-blue-500', negotiation:'bg-purple-500', closed:'bg-green-500' };
+  const maxStage = Math.max(...STAGES.map(s => filtered.filter(l=>l.stage===s).length), 1);
+  document.getElementById('funnel').innerHTML = STAGES.map(s => {
+    const c = filtered.filter(l=>l.stage===s).length;
+    return `<div class="flex items-center gap-3"><span class="w-24 text-sm text-right">${STAGE_LABELS[s]}</span><div class="flex-1 bg-slate-700 rounded-full h-6"><div class="h-6 rounded-full ${stageColors[s]} flex items-center justify-end px-2 text-xs font-medium" style="width:${c/maxStage*100}%">${c}</div></div></div>`;
+  }).join('');
+}
+
+// Drag & Drop
+function drag(e, id) { e.dataTransfer.setData('text/plain', id); e.target.classList.add('dragging'); }
+function allowDrop(e) { e.preventDefault(); }
+function drop(e, stage) {
+  e.preventDefault();
+  const id = e.dataTransfer.getData('text/plain');
+  const lead = leads.find(l => l.id === id);
+  if (lead) { lead.stage = stage; lead.lastUpdate = new Date().toISOString().split('T')[0]; save(); render(); }
+}
+
+// Modal
+function openLead(id) {
+  currentLeadId = id;
+  const l = leads.find(x => x.id === id);
+  document.getElementById('modal-title').textContent = l.name;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="grid grid-cols-2 gap-3">
+      <div><label class="text-xs text-slate-400">שם חברה</label><input id="ed-name" value="${l.name}" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1"></div>
+      <div><label class="text-xs text-slate-400">קטגוריה</label><select id="ed-tier" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1">
+        <option ${l.tier==='נדל״ן'?'selected':''}>נדל״ן</option><option ${l.tier==='קיבוץ/מועצה'?'selected':''}>קיבוץ/מועצה</option><option ${l.tier==='משקיע/תעשייה'?'selected':''}>משקיע/תעשייה</option>
+      </select></div>
+      <div><label class="text-xs text-slate-400">איש קשר</label><input id="ed-contact" value="${l.contact||''}" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1"></div>
+      <div><label class="text-xs text-slate-400">תפקיד</label><input id="ed-role" value="${l.role||''}" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1"></div>
+      <div><label class="text-xs text-slate-400">הספק (MWp)</label><input id="ed-mwp" type="number" step="0.1" value="${l.mwp||''}" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1"></div>
+      <div><label class="text-xs text-slate-400">ערך חודשי (₪)</label><input id="ed-value" type="number" value="${l.value||''}" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1"></div>
+      <div><label class="text-xs text-slate-400">חום</label><select id="ed-heat" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1">
+        <option value="hot" ${l.heat==='hot'?'selected':''}>🔥 חם</option><option value="warm" ${l.heat==='warm'?'selected':''}>🟡 חמים</option><option value="cold" ${l.heat==='cold'?'selected':''}>🔵 קר</option>
+      </select></div>
+      <div><label class="text-xs text-slate-400">סטטוס</label><select id="ed-stage" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1">
+        ${STAGES.map(s=>`<option value="${s}" ${l.stage===s?'selected':''}>${STAGE_LABELS[s]}</option>`).join('')}
+      </select></div>
+    </div>
+    <div><label class="text-xs text-slate-400">אתר</label><input id="ed-website" value="${l.website||''}" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm mt-1"></div>
+    <div><label class="text-xs text-slate-400">הערות</label><textarea id="ed-notes" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-sm mt-1 h-20">${l.notes||''}</textarea></div>
+    <div>
+      <label class="text-xs text-slate-400">היסטוריית פעילות</label>
+      <div class="space-y-1 mt-1">${(l.activities||[]).map(a=>`<div class="text-xs bg-slate-900 rounded px-3 py-2"><span class="text-slate-500">${a.date}</span> — ${a.text}</div>`).join('')}</div>
+      <div class="flex gap-2 mt-2">
+        <input id="ed-activity" placeholder="פעילות חדשה..." class="flex-1 bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-xs">
+        <button onclick="addActivity()" class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-xs">+ הוסף</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('leadModal').classList.remove('hidden');
+}
+
+function closeModal() { document.getElementById('leadModal').classList.add('hidden'); currentLeadId = null; }
+
+function saveLead() {
+  const l = leads.find(x => x.id === currentLeadId);
+  if (!l) return;
+  l.name = document.getElementById('ed-name').value;
+  l.tier = document.getElementById('ed-tier').value;
+  l.contact = document.getElementById('ed-contact').value;
+  l.role = document.getElementById('ed-role').value;
+  l.mwp = parseFloat(document.getElementById('ed-mwp').value) || 0;
+  l.value = parseInt(document.getElementById('ed-value').value) || 0;
+  l.heat = document.getElementById('ed-heat').value;
+  l.stage = document.getElementById('ed-stage').value;
+  l.website = document.getElementById('ed-website').value;
+  l.notes = document.getElementById('ed-notes').value;
+  l.lastUpdate = new Date().toISOString().split('T')[0];
+  save(); render(); closeModal();
+}
+
+function deleteLead() {
+  if (!confirm('למחוק את הליד?')) return;
+  leads = leads.filter(l => l.id !== currentLeadId);
+  save(); render(); closeModal();
+}
+
+function addActivity() {
+  const l = leads.find(x => x.id === currentLeadId);
+  const text = document.getElementById('ed-activity').value.trim();
+  if (!l || !text) return;
+  if (!l.activities) l.activities = [];
+  l.activities.push({ date: new Date().toISOString().split('T')[0], text });
+  l.lastUpdate = new Date().toISOString().split('T')[0];
+  save(); openLead(currentLeadId); // refresh modal
+}
+
+// Add Lead
+function showAddModal() { document.getElementById('addModal').classList.remove('hidden'); }
+function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
+function addLead() {
+  const name = document.getElementById('add-name').value.trim();
+  if (!name) return alert('שם חברה חובה');
+  leads.push({
+    id: Date.now().toString(),
+    name,
+    tier: document.getElementById('add-tier').value,
+    contact: document.getElementById('add-contact').value,
+    role: document.getElementById('add-role').value,
+    mwp: parseFloat(document.getElementById('add-mwp').value) || 0,
+    value: parseInt(document.getElementById('add-value').value) || 0,
+    heat: document.getElementById('add-heat').value,
+    stage: 'new',
+    website: '',
+    notes: document.getElementById('add-notes').value,
+    lastUpdate: new Date().toISOString().split('T')[0],
+    activities: []
+  });
+  save(); render(); closeAddModal();
+  ['add-name','add-contact','add-role','add-mwp','add-value','add-notes'].forEach(id => document.getElementById(id).value = '');
+}
+
+// View switching
+function switchView(view) {
+  currentView = view;
+  ['kanban','table','stats','outreach'].forEach(v => {
+    document.getElementById('view-' + v).classList.toggle('hidden', v !== view);
+    document.getElementById('tab-' + v).classList.toggle('tab-active', v === view);
+    document.getElementById('tab-' + v).classList.toggle('text-slate-400', v !== view);
+  });
+}
+
+// Export CSV
+function exportCSV() {
+  const header = 'שם חברה,קטגוריה,MWp,איש קשר,תפקיד,סטטוס,חום,ערך חודשי,אתר,הערות\n';
+  const rows = leads.map(l => `"${l.name}","${l.tier}",${l.mwp||''},"${l.contact||''}","${l.role||''}","${STAGE_LABELS[l.stage]}","${l.heat}",${l.value||''},"${l.website||''}","${(l.notes||'').replace(/"/g,'""')}"`).join('\n');
+  const blob = new Blob(['\ufeff' + header + rows], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mivne-pipeline.csv'; a.click();
+}
+
+function copyTemplate(id) {
+  navigator.clipboard.writeText(document.getElementById(id).textContent);
+  alert('הועתק!');
+}
+
+// Search & Filter listeners
+document.getElementById('searchBox').addEventListener('input', render);
+document.getElementById('tierFilter').addEventListener('change', render);
+
+// Init
+render();
+</script>
+</body>
+</html>
